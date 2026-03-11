@@ -24,7 +24,7 @@
   input{background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:12px 16px;width:100%;transition:border-color .2s;outline:none;}
   input:focus{border-color:var(--accent);}
   input::placeholder{color:#333;}
-  .btn{background:var(--accent);color:#000;border:none;border-radius:2px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;padding:16px 32px;cursor:pointer;width:100%;margin-top:16px;transition:all .15s;text-transform:uppercase;}
+  .btn{display:block;background:var(--accent);color:#000;border:none;border-radius:2px;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;padding:18px 32px;cursor:pointer;width:100%;margin-top:16px;text-transform:uppercase;letter-spacing:.05em;}
   .btn:hover{background:#d4eb00;}
   .btn:disabled{background:#222;color:#444;cursor:not-allowed;}
   #statusBox{display:none;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:24px 28px;margin-bottom:16px;}
@@ -66,5 +66,122 @@
 
   <div class="card">
     <div class="card-title">// введи username</div>
-    <input type="text" id="username" value="husan.mamasaidov" placeholder="username (без @)" />
-    <button class="btn" id="analyzeBtn" onclick="st
+    <input type="text" id="username" placeholder="username (без @)" value="husan.mamasaidov" />
+    <button class="btn" id="analyzeBtn">&#9654; ЗАПУСТИТЬ АНАЛИЗ</button>
+  </div>
+
+  <div id="errorBox"></div>
+
+  <div id="statusBox">
+    <div class="step" id="s1"><div class="dot"></div><span>Ожидание...</span></div>
+    <div class="step" id="s2"><div class="dot"></div><span>Ожидание...</span></div>
+    <div class="step" id="s3"><div class="dot"></div><span>Ожидание...</span></div>
+    <div class="step" id="s4"><div class="dot"></div><span>Ожидание...</span></div>
+  </div>
+
+  <div id="report">
+    <div class="report-top">
+      <div>
+        <div class="label">// отчёт готов</div>
+        <div class="report-username"><span>@</span><span id="rUsername"></span></div>
+      </div>
+      <div class="report-meta" id="rMeta"></div>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="section">
+      <div class="section-title">// анализ контента · claude ai</div>
+      <div class="section-body" id="rAnalysis"></div>
+      <button class="copy-btn" id="copyBtn">&#8984; копировать отчёт</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('analyzeBtn').addEventListener('click', startAnalysis);
+document.getElementById('copyBtn').addEventListener('click', copyReport);
+
+function setStep(id, state, text) {
+  var el = document.getElementById(id);
+  el.className = 'step ' + state;
+  var icon = state === 'running' ? '<div class="spin"></div>' : '<div class="dot"></div>';
+  el.innerHTML = icon + '<span>' + text + '</span>';
+}
+
+function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+async function startAnalysis() {
+  var username = document.getElementById('username').value.trim().replace('@','');
+  if (!username) { alert('Введи username!'); return; }
+
+  document.getElementById('errorBox').className = '';
+  document.getElementById('report').className = '';
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('statusBox').className = 'active';
+
+  setStep('s1', 'running', 'Отправляем запрос на сервер...');
+  setStep('s2', 'pending', 'Ожидание...');
+  setStep('s3', 'pending', 'Ожидание...');
+  setStep('s4', 'pending', 'Ожидание...');
+
+  try {
+    setStep('s1', 'done', 'Запрос отправлен ✓');
+    setStep('s2', 'running', 'Apify scraping Instagram... (1-2 мин)');
+
+    var res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username})
+    });
+
+    var data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Неизвестная ошибка');
+
+    setStep('s2', 'done', 'Instagram данные получены ✓');
+    setStep('s3', 'done', 'Постов загружено: ' + data.postsCount + ' ✓');
+    setStep('s4', 'done', 'Claude анализ завершён ✓');
+
+    document.getElementById('rUsername').textContent = data.username;
+    document.getElementById('rMeta').innerHTML =
+      'Дата: ' + new Date().toLocaleDateString('ru') + '<br>' +
+      'Постов: ' + data.postsCount + '<br>' +
+      'Powered by Apify + Claude';
+
+    document.getElementById('statsGrid').innerHTML = [
+      {val: typeof data.followers === 'number' ? data.followers.toLocaleString('ru') : data.followers, lbl: 'Подписчики'},
+      {val: data.avgLikes.toLocaleString('ru'), lbl: 'Ср. лайков'},
+      {val: data.avgComments.toLocaleString('ru'), lbl: 'Ср. комментов'},
+      {val: data.erRate + '%', lbl: 'ER Rate'},
+      {val: data.videoCount + '/' + data.postsCount, lbl: 'Видео / Всего'},
+    ].map(function(s){
+      return '<div class="stat-card"><div class="stat-val">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';
+    }).join('');
+
+    document.getElementById('rAnalysis').textContent = data.analysis;
+    window._reportText = '@' + data.username + ' — Instagram Report\n' + '='.repeat(60) + '\n\n' + data.analysis;
+
+    document.getElementById('report').className = 'visible';
+    document.getElementById('report').scrollIntoView({behavior:'smooth'});
+
+  } catch(e) {
+    var eb = document.getElementById('errorBox');
+    eb.innerHTML = '✗ ОШИБКА: ' + e.message;
+    eb.className = 'visible';
+    ['s1','s2','s3','s4'].forEach(function(id){
+      if(document.getElementById(id).classList.contains('running'))
+        setStep(id, 'err', '✗ ' + e.message);
+    });
+  }
+
+  document.getElementById('analyzeBtn').disabled = false;
+}
+
+function copyReport() {
+  navigator.clipboard.writeText(window._reportText || '').then(function(){
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ скопировано';
+    setTimeout(function(){ btn.textContent = '⎘ копировать отчёт'; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
