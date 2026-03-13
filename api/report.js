@@ -7,9 +7,9 @@ export default async function handler(req, res) {
   const { runId, datasetId, username } = req.body;
   const APIFY_TOKEN = process.env.APIFY_TOKEN;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
+  const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_KEY;
 
   try {
-    // Проверяем статус
     const sRes = await fetch(`https://api.apify.com/v2/acts/apify~instagram-scraper/runs/${runId}?token=${APIFY_TOKEN}`);
     const sData = await sRes.json();
     const status = sData.data.status;
@@ -17,20 +17,56 @@ export default async function handler(req, res) {
     if (['RUNNING', 'READY', 'ABORTING'].includes(status)) {
       return res.status(200).json({ status: 'running' });
     }
-
     if (['FAILED', 'ABORTED'].includes(status)) {
       return res.status(500).json({ error: 'Apify ошибка: ' + status });
     }
 
-    // Готово — забираем данные
     const dataRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=30`);
     const posts = await dataRes.json();
-
     if (!posts || posts.length === 0) throw new Error('Посты не найдены. Аккаунт приватный?');
 
     const profile = posts[0]?.ownerFullName || username;
     const followers = posts[0]?.ownerFollowersCount ?? '?';
     const following = posts[0]?.ownerFollowingCount ?? '?';
+
+    async function transcribeVideo(videoUrl) {
+      try {
+        const submitRes = await fetch('https://api.assemblyai.com/v2/transcript', {
+          method: 'POST',
+          headers: { 'Authorization': ASSEMBLYAI_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio_url: videoUrl, language_detection: true })
+        });
+        const submitData = await submitRes.json();
+        if (!submitData.id) return null;
+        let attempts = 0;
+        while (attempts < 20) {
+          await new Promise(r => setTimeout(r, 3000));
+          attempts++;
+          const pollRes = await fetch(`https://api.assemblyai.com/v2/transcript/${submitData.id}`, {
+            headers: { 'Authorization': ASSEMBLYAI_KEY }
+          });
+          const pollData = await pollRes.json();
+          if (pollData.status === 'completed') return pollData.text;
+          if (pollData.status === 'error') return null;
+        }
+        return null;
+      } catch(e) { return null; }
+    }
+
+    const videoPosts = posts.filter(p => p.videoUrl).slice(0, 5);
+    const transcriptTexts = {};
+    await Promise.all(videoPosts.map(async (p, i) => {
+      const text = await transcribeVideo(p.videoUrl);
+      if (text) transcriptTexts[i] = text;
+    }));
+
+    const transcripts = videoPosts.map((p, i) => ({
+      date: p.timestamp ? new Date(p.timestamp * 1000).toLocaleDateString('ru') : '?',
+      likes: p.likesCount || 0,
+      comments: p.commentsCount || 0,
+      caption: (p.caption || '').slice(0, 200),
+      transcript: transcriptTexts[i] || '(транскрипция недоступна)'
+    }));
 
     const postsText = posts.map((p, i) => {
       const likes = p.likesCount ?? 0;
@@ -38,7 +74,11 @@ export default async function handler(req, res) {
       const caption = (p.caption || '').slice(0, 300);
       const type = p.type || (p.videoUrl ? 'Video' : 'Image');
       const date = p.timestamp ? new Date(p.timestamp * 1000).toLocaleDateString('ru') : '?';
-      return `[${i+1}] ${date} | ${type} | ❤️ ${likes} 💬 ${comments}\n${caption || '(без подписи)'}`;
+      const videoIndex = videoPosts.findIndex(vp => vp.videoUrl === p.videoUrl);
+      const transcript = videoIndex !== -1 && transcriptTexts[videoIndex]
+        ? `\n🎙 ТРАНСКРИПЦИЯ: ${transcriptTexts[videoIndex].slice(0, 500)}`
+        : '';
+      return `[${i+1}] ${date} | ${type} | ❤️ ${likes} 💬 ${comments}\n${caption || '(без подписи)'}${transcript}`;
     }).join('\n\n---\n\n');
 
     const totalLikes = posts.reduce((s, p) => s + (p.likesCount || 0), 0);
@@ -47,6 +87,7 @@ export default async function handler(req, res) {
     const avgComments = Math.round(totalComments / posts.length);
     const videoCount = posts.filter(p => p.type === 'Video' || p.videoUrl).length;
     const erRate = followers !== '?' ? ((totalLikes + totalComments) / posts.length / followers * 100).toFixed(2) : '?';
+    const transcribedCount = Object.keys(transcriptTexts).length;
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -57,129 +98,71 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 2500,
+        max_tokens: 3000,
         messages: [{
           role: 'user',
           content: `Ты — Senior Content Strategist с 10+ летним опытом в digital-маркетинге и Instagram-стратегии.
 
-Проанализируй Instagram аккаунт @${username} (${profile}).
-Подписчики: ${followers} | Подписки: ${following} | Постов в выборке: ${posts.length}
+Аккаунт: @${username} (${profile})
+Подписчики: ${followers} | Подписки: ${following} | Постов: ${posts.length}
+Транскрибировано видео: ${transcribedCount} из ${videoCount}
 
-ДАННЫЕ ПОСТОВ:
+ДАННЫЕ ПОСТОВ (включая транскрипции видео):
 ${postsText}
 
-Составь профессиональный контент-маркетинговый отчёт на русском языке:
-
----
+Составь профессиональный контент-маркетинговый отчёт на русском:
 
 ## 📊 EXECUTIVE SUMMARY
-Краткий вывод в 3-4 предложениях: кто автор, какова его позиция на рынке, главный инсайт.
-
----
+3-4 предложения: кто автор, позиция на рынке, главный инсайт.
 
 ## 👤 ПОРТРЕТ АККАУНТА
 - Ниша и субниша
-- Ценностное предложение (UVP) автора
+- Ценностное предложение (UVP)
 - Тон коммуникации (TOV)
-- Целевая аудитория: кто эти люди, их боли и желания
+- Целевая аудитория: боли и желания
 
----
+## 🎙 АНАЛИЗ РЕЧИ И ПОДАЧИ (на основе транскрипций)
+- Как автор говорит: темп, стиль, словарный запас
+- Повторяющиеся фразы и слова-триггеры
+- Как начинает видео (хук)
+- Как заканчивает (call to action)
+- Эмоциональные триггеры которые использует
 
-## 📈 МЕТРИКИ И ENGAGEMENT АНАЛИЗ
-- Средний ER Rate: ${erRate}% — что это значит для ниши
-- Анализ виральности: какие посты взрываются и почему
-- Соотношение лайков к комментариям — насколько аудитория вовлечена
-- Сравнение видео vs фото по engagement
+## 📈 МЕТРИКИ И ENGAGEMENT
+- ER Rate: ${erRate}% — что означает для ниши
+- Какие посты взрываются и почему
+- Соотношение лайков к комментариям
 
----
+## 🎯 КОНТЕНТ-МИКС (в %)
+Образовательный / Мотивационный / Личный / Продающий / Развлекательный
 
-## 🎯 КОНТЕНТ-МИКС АНАЛИЗ
-Разбей контент на категории (в %):
-- Образовательный
-- Мотивационный
-- Личный/лайфстайл
-- Продающий
-- Развлекательный
-Оцени баланс и что нужно изменить.
-
----
-
-## 🔥 ТОП-ПОСТЫ И ПАТТЕРНЫ УСПЕХА
-Выдели 3 самых успешных поста. Для каждого:
-- Почему он зашёл (психологический триггер)
-- Какой элемент сделал его виральным
-- Как масштабировать этот формат
-
----
-
-## ⚡ КОНТЕНТНЫЕ ПАТТЕРНЫ
-- Повторяющиеся темы которые работают
-- Заголовки и хуки которые цепляют
-- Оптимальная длина описаний
-- Использование эмодзи и форматирования
-
----
+## 🔥 ТОП-3 ПОСТА — РАЗБОР
+Для каждого: психологический триггер, почему зашёл, как масштабировать.
 
 ## 🚀 СТРАТЕГИЯ РОСТА (90 дней)
-**Месяц 1 — Фундамент:**
-3 конкретных действия
-
-**Месяц 2 — Масштабирование:**
-3 конкретных действия
-
-**Месяц 3 — Монетизация:**
-3 конкретных действия
-
----
+Месяц 1, 2, 3 — по 3 конкретных действия.
 
 ## 💡 КОНТЕНТ-ПЛАН НА НЕДЕЛЮ
-Конкретный план на 7 дней с темами постов, форматами и хуками для каждого дня.
-
----
-
-## 💰 МОНЕТИЗАЦИЯ
-Текущие признаки монетизации и 3 рекомендации как автор может зарабатывать больше.
-
----
+7 дней с темами, форматами и хуками.
 
 ## ⚠️ КРИТИЧЕСКИЕ ЗОНЫ РОСТА
-Топ-3 проблемы которые тормозят рост — с конкретными решениями.
+Топ-3 проблемы с конкретными решениями.
 
----
-
-Используй конкретные данные из постов. Будь максимально конкретным — никаких общих слов.
-
-Аккаунт: @${username} (${profile})
-Подписчики: ${followers} | Подписки: ${following}
-Постов собрано: ${posts.length}
-
-ПОСТЫ:
-${postsText}
-
-Напиши детальный отчёт на русском:
-1. ОБЩАЯ ХАРАКТЕРИСТИКА АККАУНТА
-2. КОНТЕНТ-СТРАТЕГИЯ
-3. ЧТО ЗАХОДИТ ЛУЧШЕ ВСЕГО
-4. ОСНОВНЫЕ ТЕМЫ
-5. СИЛЬНЫЕ СТОРОНЫ
-6. ЗОНЫ РОСТА
-7. РЕКОМЕНДАЦИИ (5 конкретных советов)
-
-Используй данные из постов.`
+Используй данные из транскрипций для глубокого анализа речи автора.`
         }]
       })
     });
 
     if (!claudeRes.ok) throw new Error('Claude API ошибка: ' + claudeRes.status);
     const claudeData = await claudeRes.json();
-    const analysis = claudeData.content[0].text;
 
     return res.status(200).json({
       status: 'done',
       username, profile, followers, following,
       postsCount: posts.length,
       avgLikes, avgComments, erRate, videoCount,
-      analysis
+      transcribedCount, transcripts,
+      analysis: claudeData.content[0].text
     });
 
   } catch(e) {
