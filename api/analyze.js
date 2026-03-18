@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         directUrls: [`https://www.instagram.com/${username}/`],
         resultsType: 'posts',
-        resultsLimit: 30,
+        resultsLimit: 50,
         addParentData: true
       })
     });
