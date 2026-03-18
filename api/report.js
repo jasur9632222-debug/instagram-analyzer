@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const { runId, datasetId, username } = req.body;
   const APIFY_TOKEN = process.env.APIFY_TOKEN;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
-  const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_KEY;
+  const OPENAI_KEY = process.env.OPENAI_KEY;
 
   try {
     const sRes = await fetch(`https://api.apify.com/v2/acts/apify~instagram-scraper/runs/${runId}?token=${APIFY_TOKEN}`);
@@ -29,32 +29,39 @@ export default async function handler(req, res) {
     const followers = posts[0]?.ownerFollowersCount ?? '?';
     const following = posts[0]?.ownerFollowingCount ?? '?';
 
+    // Транскрипция через Whisper
     async function transcribeVideo(videoUrl) {
       try {
-        const submitRes = await fetch('https://api.assemblyai.com/v2/transcript', {
+        // Скачиваем видео
+        const videoRes = await fetch(videoUrl);
+        if (!videoRes.ok) return null;
+        const videoBuffer = await videoRes.arrayBuffer();
+
+        // Отправляем в Whisper
+        const formData = new FormData();
+        const blob = new Blob([videoBuffer], { type: 'video/mp4' });
+        formData.append('file', blob, 'video.mp4');
+        formData.append('model', 'whisper-1');
+        formData.append('language', 'uz');
+
+        const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
           method: 'POST',
-          headers: { 'Authorization': ASSEMBLYAI_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio_url: videoUrl, language_detection: true })
+          headers: { 'Authorization': 'Bearer ' + OPENAI_KEY },
+          body: formData
         });
-        const submitData = await submitRes.json();
-        if (!submitData.id) return null;
-        let attempts = 0;
-        while (attempts < 20) {
-          await new Promise(r => setTimeout(r, 3000));
-          attempts++;
-          const pollRes = await fetch(`https://api.assemblyai.com/v2/transcript/${submitData.id}`, {
-            headers: { 'Authorization': ASSEMBLYAI_KEY }
-          });
-          const pollData = await pollRes.json();
-          if (pollData.status === 'completed') return pollData.text;
-          if (pollData.status === 'error') return null;
-        }
+
+        if (!whisperRes.ok) return null;
+        const whisperData = await whisperRes.json();
+        return whisperData.text || null;
+      } catch(e) {
         return null;
-      } catch(e) { return null; }
+      }
     }
 
+    // Берём первые 5 видео
     const videoPosts = posts.filter(p => p.videoUrl).slice(0, 5);
     const transcriptTexts = {};
+
     await Promise.all(videoPosts.map(async (p, i) => {
       const text = await transcribeVideo(p.videoUrl);
       if (text) transcriptTexts[i] = text;
@@ -76,7 +83,7 @@ export default async function handler(req, res) {
       const date = p.timestamp ? new Date(p.timestamp * 1000).toLocaleDateString('ru') : '?';
       const videoIndex = videoPosts.findIndex(vp => vp.videoUrl === p.videoUrl);
       const transcript = videoIndex !== -1 && transcriptTexts[videoIndex]
-        ? `\n🎙 ТРАНСКРИПЦИЯ: ${transcriptTexts[videoIndex].slice(0, 500)}`
+        ? `\n🎙 ТРАНСКРИПЦИЯ: ${transcriptTexts[videoIndex].slice(0, 600)}`
         : '';
       return `[${i+1}] ${date} | ${type} | ❤️ ${likes} 💬 ${comments}\n${caption || '(без подписи)'}${transcript}`;
     }).join('\n\n---\n\n');
@@ -107,7 +114,7 @@ export default async function handler(req, res) {
 Подписчики: ${followers} | Подписки: ${following} | Постов: ${posts.length}
 Транскрибировано видео: ${transcribedCount} из ${videoCount}
 
-ДАННЫЕ ПОСТОВ (включая транскрипции видео):
+ДАННЫЕ ПОСТОВ (включая транскрипции видео на узбекском):
 ${postsText}
 
 Составь профессиональный контент-маркетинговый отчёт на русском:
@@ -133,20 +140,23 @@ ${postsText}
 - Какие посты взрываются и почему
 - Соотношение лайков к комментариям
 
-## 🎯 КОНТЕНТ-МИКС (в %)
+## 🎯 КОНТЕНТ-МИКС И ВОРОНКА
+
+**Распределение по типу (в %):**
 Образовательный / Мотивационный / Личный / Продающий / Развлекательный
 
-## 🔥 ТОП-3 ПОСТА — РАЗБОР
-Для каждого: психологический триггер, почему зашёл, как масштабировать.
+**Анализ воронки TOF / MOF / BOF:**
+Для каждого поста определи к какому уровню воронки он относится и посчитай %:
 
-## 🚀 СТРАТЕГИЯ РОСТА (90 дней)
-Месяц 1, 2, 3 — по 3 конкретных действия.
+- TOF (Top of Funnel) — охватный контент: виральные темы, широкие боли, хуки для холодной аудитории. Сколько % постов сюда?
+- MOF (Middle of Funnel) — прогревающий контент: экспертность, кейсы, истории, обучение. Сколько % постов сюда?
+- BOF (Bottom of Funnel) — конверсионный контент: продажи, офферы, призывы купить/записаться. Сколько % постов сюда?
 
-## 💡 КОНТЕНТ-ПЛАН НА НЕДЕЛЮ
-7 дней с темами, форматами и хуками.
+Оцени баланс воронки — правильное ли соотношение для роста аккаунта?
+Что нужно добавить или убрать чтобы воронка работала эффективнее?
 
-## ⚠️ КРИТИЧЕСКИЕ ЗОНЫ РОСТА
-Топ-3 проблемы с конкретными решениями.
+**Попадание в аудиторию:**
+Оцени каждый пост по шкале — бьёт в аудиторию или нет. Общий % контента который резонирует с целевой аудиторией.
 
 Используй данные из транскрипций для глубокого анализа речи автора.`
         }]
