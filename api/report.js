@@ -30,27 +30,20 @@ export default async function handler(req, res) {
     const followers = posts[0]?.ownerFollowersCount ?? '?';
     const following = posts[0]?.ownerFollowingCount ?? '?';
 
-    // Получаем рабочий URL видео через RapidAPI
-    async function getVideoUrl(postUrl) {
+    async function transcribePost(post) {
       try {
-        const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(postUrl)}`, {
-          method: 'GET',
+        const postUrl = post.url || `https://www.instagram.com/p/${post.shortCode}/`;
+
+        const videoRes = await fetch(`https://instagram-downloader38.p.rapidapi.com/download?url=${encodeURIComponent(postUrl)}&strategy=largest&wait_ms=5000`, {
           headers: {
-            'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com',
+            'x-rapidapi-host': 'instagram-downloader38.p.rapidapi.com',
             'x-rapidapi-key': RAPIDAPI_KEY
           }
         });
-        const data = await res.json();
-        return data?.video_url || data?.url || data?.download_url || null;
-      } catch(e) { return null; }
-    }
 
-    // Транскрипция через Whisper
-    async function transcribeVideo(videoUrl) {
-      try {
-        const videoRes = await fetch(videoUrl);
         if (!videoRes.ok) return null;
         const videoBuffer = await videoRes.arrayBuffer();
+        if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
 
         const formData = new FormData();
         const blob = new Blob([videoBuffer], { type: 'video/mp4' });
@@ -67,24 +60,17 @@ export default async function handler(req, res) {
         if (!whisperRes.ok) return null;
         const whisperData = await whisperRes.json();
         return whisperData.text || null;
-      } catch(e) { return null; }
+      } catch(e) {
+        return null;
+      }
     }
 
-    // Берём первые 15 видео
     const videoPosts = posts.filter(p => p.videoUrl || p.type === 'Video').slice(0, 15);
     const transcriptTexts = {};
 
     await Promise.all(videoPosts.map(async (p, i) => {
-      try {
-        // Получаем прямой URL через RapidAPI
-        const postUrl = p.url || `https://www.instagram.com/p/${p.shortCode}/`;
-        const directUrl = await getVideoUrl(postUrl);
-        if (!directUrl) return;
-
-        // Транскрибируем
-        const text = await transcribeVideo(directUrl);
-        if (text) transcriptTexts[i] = text;
-      } catch(e) {}
+      const text = await transcribePost(p);
+      if (text) transcriptTexts[i] = text;
     }));
 
     const transcripts = videoPosts.map((p, i) => ({
@@ -166,7 +152,7 @@ ${postsText}
 
 TOF / MOF / BOF анализ:
 - TOF (охватный): сколько % постов, какие темы
-- MOF (прогревающий): сколько % постов, какие темы
+- MOF (прогревающий): сколько % постов, какие темы  
 - BOF (конверсионный): сколько % постов, какие темы
 Оцени баланс и что изменить.
 
