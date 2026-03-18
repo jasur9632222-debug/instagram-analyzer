@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   const APIFY_TOKEN = process.env.APIFY_TOKEN;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
   const OPENAI_KEY = process.env.OPENAI_KEY;
+  const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
   try {
     const sRes = await fetch(`https://api.apify.com/v2/acts/apify~instagram-scraper/runs/${runId}?token=${APIFY_TOKEN}`);
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Apify ошибка: ' + status });
     }
 
-    const dataRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=30`);
+    const dataRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=50`);
     const posts = await dataRes.json();
     if (!posts || posts.length === 0) throw new Error('Посты не найдены. Аккаунт приватный?');
 
@@ -29,15 +30,28 @@ export default async function handler(req, res) {
     const followers = posts[0]?.ownerFollowersCount ?? '?';
     const following = posts[0]?.ownerFollowingCount ?? '?';
 
+    // Получаем рабочий URL видео через RapidAPI
+    async function getVideoUrl(postUrl) {
+      try {
+        const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(postUrl)}`, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com',
+            'x-rapidapi-key': RAPIDAPI_KEY
+          }
+        });
+        const data = await res.json();
+        return data?.video_url || data?.url || data?.download_url || null;
+      } catch(e) { return null; }
+    }
+
     // Транскрипция через Whisper
     async function transcribeVideo(videoUrl) {
       try {
-        // Скачиваем видео
         const videoRes = await fetch(videoUrl);
         if (!videoRes.ok) return null;
         const videoBuffer = await videoRes.arrayBuffer();
 
-        // Отправляем в Whisper
         const formData = new FormData();
         const blob = new Blob([videoBuffer], { type: 'video/mp4' });
         formData.append('file', blob, 'video.mp4');
@@ -53,18 +67,24 @@ export default async function handler(req, res) {
         if (!whisperRes.ok) return null;
         const whisperData = await whisperRes.json();
         return whisperData.text || null;
-      } catch(e) {
-        return null;
-      }
+      } catch(e) { return null; }
     }
 
-    // Берём первые 5 видео
-    const videoPosts = posts.filter(p => p.videoUrl).slice(0, 15);
+    // Берём первые 15 видео
+    const videoPosts = posts.filter(p => p.videoUrl || p.type === 'Video').slice(0, 15);
     const transcriptTexts = {};
 
     await Promise.all(videoPosts.map(async (p, i) => {
-      const text = await transcribeVideo(p.videoUrl);
-      if (text) transcriptTexts[i] = text;
+      try {
+        // Получаем прямой URL через RapidAPI
+        const postUrl = p.url || `https://www.instagram.com/p/${p.shortCode}/`;
+        const directUrl = await getVideoUrl(postUrl);
+        if (!directUrl) return;
+
+        // Транскрибируем
+        const text = await transcribeVideo(directUrl);
+        if (text) transcriptTexts[i] = text;
+      } catch(e) {}
     }));
 
     const transcripts = videoPosts.map((p, i) => ({
@@ -81,7 +101,7 @@ export default async function handler(req, res) {
       const caption = (p.caption || '').slice(0, 300);
       const type = p.type || (p.videoUrl ? 'Video' : 'Image');
       const date = p.timestamp ? new Date(p.timestamp * 1000).toLocaleDateString('ru') : '?';
-      const videoIndex = videoPosts.findIndex(vp => vp.videoUrl === p.videoUrl);
+      const videoIndex = videoPosts.findIndex(vp => vp.shortCode === p.shortCode);
       const transcript = videoIndex !== -1 && transcriptTexts[videoIndex]
         ? `\n🎙 ТРАНСКРИПЦИЯ: ${transcriptTexts[videoIndex].slice(0, 600)}`
         : '';
@@ -141,22 +161,28 @@ ${postsText}
 - Соотношение лайков к комментариям
 
 ## 🎯 КОНТЕНТ-МИКС И ВОРОНКА
-
-**Распределение по типу (в %):**
+Распределение по типу (в %):
 Образовательный / Мотивационный / Личный / Продающий / Развлекательный
 
-**Анализ воронки TOF / MOF / BOF:**
-Для каждого поста определи к какому уровню воронки он относится и посчитай %:
+TOF / MOF / BOF анализ:
+- TOF (охватный): сколько % постов, какие темы
+- MOF (прогревающий): сколько % постов, какие темы
+- BOF (конверсионный): сколько % постов, какие темы
+Оцени баланс и что изменить.
 
-- TOF (Top of Funnel) — охватный контент: виральные темы, широкие боли, хуки для холодной аудитории. Сколько % постов сюда?
-- MOF (Middle of Funnel) — прогревающий контент: экспертность, кейсы, истории, обучение. Сколько % постов сюда?
-- BOF (Bottom of Funnel) — конверсионный контент: продажи, офферы, призывы купить/записаться. Сколько % постов сюда?
+Попадание в аудиторию: общий % контента который резонирует.
 
-Оцени баланс воронки — правильное ли соотношение для роста аккаунта?
-Что нужно добавить или убрать чтобы воронка работала эффективнее?
+## 🔥 ТОП-3 ПОСТА — РАЗБОР
+Для каждого: психологический триггер, почему зашёл, как масштабировать.
 
-**Попадание в аудиторию:**
-Оцени каждый пост по шкале — бьёт в аудиторию или нет. Общий % контента который резонирует с целевой аудиторией.
+## 🚀 СТРАТЕГИЯ РОСТА (90 дней)
+Месяц 1, 2, 3 — по 3 конкретных действия.
+
+## 💡 КОНТЕНТ-ПЛАН НА НЕДЕЛЮ
+7 дней с темами, форматами и хуками.
+
+## ⚠️ КРИТИЧЕСКИЕ ЗОНЫ РОСТА
+Топ-3 проблемы с конкретными решениями.
 
 Используй данные из транскрипций для глубокого анализа речи автора.`
         }]
