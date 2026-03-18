@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     }
 
     // Берём первые 5 видео
-    const videoPosts = posts.filter(p => p.videoUrl).slice(0, 5);
+    const videoPosts = posts.filter(p => p.videoUrl).slice(0, 15);
     const transcriptTexts = {};
 
     await Promise.all(videoPosts.map(async (p, i) => {
