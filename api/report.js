@@ -37,7 +37,21 @@ export default async function handler(req, res) {
     console.log('Post keys:', Object.keys(firstPost).join(','));
     console.log('Post type:', firstPost.type, '| isVideo:', firstPost.isVideo, '| hasVideoUrl:', !!firstPost.videoUrl);
 
-    async function transcribePost(post) {
+    async function async function transcribePost(post) {   try {     const postUrl = post.url || `https://www.instagram.com/p/${post.shortCode}/`;     console.log('Transcribing:', postUrl);      const videoRes = await fetch(`https://instagram-downloader38.p.rapidapi.com/download?url=${encodeURIComponent(postUrl)}&strategy=largest&wait_ms=5000`, {       headers: {         'x-rapidapi-host': 'instagram-downloader38.p.rapidapi.com',         'x-rapidapi-key': RAPIDAPI_KEY       }     });      console.log('RapidAPI status:', videoRes.status);     if (!videoRes.ok) return null;      const videoBuffer = await videoRes.arrayBuffer();     console.log('Video size:', videoBuffer.byteLength);     if (!videoBuffer || videoBuffer.byteLength < 1000) return null;      // Конвертируем в base64     const uint8Array = new Uint8Array(videoBuffer);     let binary = '';     for (let i = 0; i < uint8Array.length; i++) {       binary += String.fromCharCode(uint8Array[i]);     }     const base64 = btoa(binary);      // Отправляем в Whisper через multipart вручную     const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);     const fileName = 'audio.mp4';      const beforeFile = `--${boundary}
+Content-Disposition: form-data; name="model"
+
+whisper-1
+--${boundary}
+Content-Disposition: form-data; name="language"
+
+uz
+--${boundary}
+Content-Disposition: form-data; name="file"; filename="${fileName}"
+Content-Type: video/mp4
+
+`;     const afterFile = `
+--${boundary}--
+`;      const beforeBytes = new TextEncoder().encode(beforeFile);     const afterBytes = new TextEncoder().encode(afterFile);      const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);     body.set(beforeBytes, 0);     body.set(uint8Array, beforeBytes.length);     body.set(afterBytes, beforeBytes.length + uint8Array.length);      const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {       method: 'POST',       headers: {         'Authorization': 'Bearer ' + OPENAI_KEY,         'Content-Type': `multipart/form-data; boundary=${boundary}`       },       body: body     });      console.log('Whisper status:', whisperRes.status);     if (!whisperRes.ok) {       const err = await whisperRes.text();       console.log('Whisper error:', err);       return null;     }     const whisperData = await whisperRes.json();     console.log('Transcript length:', whisperData.text?.length);     return whisperData.text || null;   } catch(e) {     console.log('Transcribe error:', e.message);     return null;   } }(post) {
       try {
         const postUrl = post.url || `https://www.instagram.com/p/${post.shortCode}/`;
         console.log('Transcribing:', postUrl);
