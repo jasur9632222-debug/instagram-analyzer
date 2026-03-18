@@ -65,7 +65,7 @@ export default async function handler(req, res) {
       }
     }
 
-    const videoPosts = posts.filter(p => p.videoUrl || p.type === 'Video').slice(0, 15);
+    const videoPosts = posts.filter(p => p.videoUrl || p.type === 'Video' || p.isVideo).slice(0, 15); console.log('Total posts:', posts.length); console.log('Video posts found:', videoPosts.length); console.log('First post keys:', Object.keys(posts[0] || {})); console.log('First post type:', posts[0]?.type, posts[0]?.isVideo, posts[0]?.videoUrl ? 'has video' : 'no video');
     const transcriptTexts = {};
 
     await Promise.all(videoPosts.map(async (p, i) => {
