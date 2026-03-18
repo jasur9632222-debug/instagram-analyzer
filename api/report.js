@@ -32,26 +32,7 @@ export default async function handler(req, res) {
     const followers = posts[0]?.ownerFollowersCount ?? '?';
     const following = posts[0]?.ownerFollowingCount ?? '?';
 
-    // Логируем структуру первого поста
-    const firstPost = posts[0] || {};
-    console.log('Post keys:', Object.keys(firstPost).join(','));
-    console.log('Post type:', firstPost.type, '| isVideo:', firstPost.isVideo, '| hasVideoUrl:', !!firstPost.videoUrl);
-
-    async function async function transcribePost(post) {   try {     const postUrl = post.url || `https://www.instagram.com/p/${post.shortCode}/`;     console.log('Transcribing:', postUrl);      const videoRes = await fetch(`https://instagram-downloader38.p.rapidapi.com/download?url=${encodeURIComponent(postUrl)}&strategy=largest&wait_ms=5000`, {       headers: {         'x-rapidapi-host': 'instagram-downloader38.p.rapidapi.com',         'x-rapidapi-key': RAPIDAPI_KEY       }     });      console.log('RapidAPI status:', videoRes.status);     if (!videoRes.ok) return null;      const videoBuffer = await videoRes.arrayBuffer();     console.log('Video size:', videoBuffer.byteLength);     if (!videoBuffer || videoBuffer.byteLength < 1000) return null;      // Конвертируем в base64     const uint8Array = new Uint8Array(videoBuffer);     let binary = '';     for (let i = 0; i < uint8Array.length; i++) {       binary += String.fromCharCode(uint8Array[i]);     }     const base64 = btoa(binary);      // Отправляем в Whisper через multipart вручную     const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);     const fileName = 'audio.mp4';      const beforeFile = `--${boundary}
-Content-Disposition: form-data; name="model"
-
-whisper-1
---${boundary}
-Content-Disposition: form-data; name="language"
-
-uz
---${boundary}
-Content-Disposition: form-data; name="file"; filename="${fileName}"
-Content-Type: video/mp4
-
-`;     const afterFile = `
---${boundary}--
-`;      const beforeBytes = new TextEncoder().encode(beforeFile);     const afterBytes = new TextEncoder().encode(afterFile);      const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);     body.set(beforeBytes, 0);     body.set(uint8Array, beforeBytes.length);     body.set(afterBytes, beforeBytes.length + uint8Array.length);      const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {       method: 'POST',       headers: {         'Authorization': 'Bearer ' + OPENAI_KEY,         'Content-Type': `multipart/form-data; boundary=${boundary}`       },       body: body     });      console.log('Whisper status:', whisperRes.status);     if (!whisperRes.ok) {       const err = await whisperRes.text();       console.log('Whisper error:', err);       return null;     }     const whisperData = await whisperRes.json();     console.log('Transcript length:', whisperData.text?.length);     return whisperData.text || null;   } catch(e) {     console.log('Transcribe error:', e.message);     return null;   } }(post) {
+    async function transcribePost(post) {
       try {
         const postUrl = post.url || `https://www.instagram.com/p/${post.shortCode}/`;
         console.log('Transcribing:', postUrl);
@@ -70,20 +51,35 @@ Content-Type: video/mp4
         console.log('Video size:', videoBuffer.byteLength);
         if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
 
-        const formData = new FormData();
-        const blob = new Blob([videoBuffer], { type: 'video/mp4' });
-        formData.append('file', blob, 'video.mp4');
-        formData.append('model', 'whisper-1');
-        formData.append('language', 'uz');
+        const uint8Array = new Uint8Array(videoBuffer);
+        const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
+
+        const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-1\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="language"\r\n\r\nuz\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
+        const afterFile = '\r\n--' + boundary + '--\r\n';
+
+        const beforeBytes = new TextEncoder().encode(beforeFile);
+        const afterBytes = new TextEncoder().encode(afterFile);
+
+        const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);
+        body.set(beforeBytes, 0);
+        body.set(uint8Array, beforeBytes.length);
+        body.set(afterBytes, beforeBytes.length + uint8Array.length);
 
         const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + OPENAI_KEY },
-          body: formData
+          headers: {
+            'Authorization': 'Bearer ' + OPENAI_KEY,
+            'Content-Type': 'multipart/form-data; boundary=' + boundary
+          },
+          body: body
         });
 
         console.log('Whisper status:', whisperRes.status);
-        if (!whisperRes.ok) return null;
+        if (!whisperRes.ok) {
+          const err = await whisperRes.text();
+          console.log('Whisper error:', err);
+          return null;
+        }
         const whisperData = await whisperRes.json();
         console.log('Transcript length:', whisperData.text?.length);
         return whisperData.text || null;
@@ -120,9 +116,9 @@ Content-Type: video/mp4
       const date = p.timestamp ? new Date(p.timestamp * 1000).toLocaleDateString('ru') : '?';
       const videoIndex = videoPosts.findIndex(vp => vp.shortCode === p.shortCode);
       const transcript = videoIndex !== -1 && transcriptTexts[videoIndex]
-        ? `\n🎙 ТРАНСКРИПЦИЯ: ${transcriptTexts[videoIndex].slice(0, 600)}`
+        ? '\n🎙 ТРАНСКРИПЦИЯ: ' + transcriptTexts[videoIndex].slice(0, 600)
         : '';
-      return `[${i+1}] ${date} | ${type} | ❤️ ${likes} 💬 ${comments}\n${caption || '(без подписи)'}${transcript}`;
+      return '[' + (i+1) + '] ' + date + ' | ' + type + ' | ❤️ ' + likes + ' 💬 ' + comments + '\n' + (caption || '(без подписи)') + transcript;
     }).join('\n\n---\n\n');
 
     const totalLikes = posts.reduce((s, p) => s + (p.likesCount || 0), 0);
@@ -145,24 +141,7 @@ Content-Type: video/mp4
         max_tokens: 3000,
         messages: [{
           role: 'user',
-          content: `Ты — Senior Content Strategist.
-Аккаунт: @${username} (${profile})
-Подписчики: ${followers} | Постов: ${posts.length}
-Транскрибировано: ${transcribedCount} видео
-
-ПОСТЫ:
-${postsText}
-
-Отчёт на русском:
-## 📊 EXECUTIVE SUMMARY
-## 👤 ПОРТРЕТ АККАУНТА
-## 🎙 АНАЛИЗ РЕЧИ (из транскрипций)
-## 📈 МЕТРИКИ И ENGAGEMENT
-## 🎯 КОНТЕНТ-МИКС И ВОРОНКА TOF/MOF/BOF
-## 🔥 ТОП-3 ПОСТА
-## 🚀 СТРАТЕГИЯ РОСТА 90 дней
-## 💡 КОНТЕНТ-ПЛАН НА НЕДЕЛЮ
-## ⚠️ КРИТИЧЕСКИЕ ЗОНЫ РОСТА`
+          content: 'Ты — Senior Content Strategist.\nАккаунт: @' + username + ' (' + profile + ')\nПодписчики: ' + followers + ' | Постов: ' + posts.length + '\nТранскрибировано: ' + transcribedCount + ' видео\n\nПОСТЫ:\n' + postsText + '\n\nОтчёт на русском:\n## 📊 EXECUTIVE SUMMARY\n## 👤 ПОРТРЕТ АККАУНТА\n## 🎙 АНАЛИЗ РЕЧИ (из транскрипций)\n## 📈 МЕТРИКИ И ENGAGEMENT\n## 🎯 КОНТЕНТ-МИКС И ВОРОНКА TOF/MOF/BOF\n## 🔥 ТОП-3 ПОСТА\n## 🚀 СТРАТЕГИЯ РОСТА 90 дней\n## 💡 КОНТЕНТ-ПЛАН НА НЕДЕЛЮ\n## ⚠️ КРИТИЧЕСКИЕ ЗОНЫ РОСТА'
         }]
       })
     });
