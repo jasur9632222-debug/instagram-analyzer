@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         const uint8Array = new Uint8Array(videoBuffer);
         const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
 
-        const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-1\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="language"\r\n\r\nuz\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
+        const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-1\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
         const afterFile = '\r\n--' + boundary + '--\r\n';
 
         const beforeBytes = new TextEncoder().encode(beforeFile);
@@ -146,7 +146,11 @@ export default async function handler(req, res) {
       })
     });
 
-    if (!claudeRes.ok) throw new Error('Claude API ошибка: ' + claudeRes.status);
+    if (!claudeRes.ok) {
+      const err = await claudeRes.text();
+      console.log('Claude error:', err);
+      throw new Error('Claude API ошибка: ' + claudeRes.status);
+    }
     const claudeData = await claudeRes.json();
 
     return res.status(200).json({
