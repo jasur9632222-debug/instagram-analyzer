@@ -15,14 +15,11 @@
   h1{font-size:clamp(32px,6vw,52px);font-weight:800;line-height:1;letter-spacing:-.02em;}
   h1 span{color:var(--accent);}
   .subtitle{margin-top:12px;color:var(--muted);font-size:13px;font-family:'IBM Plex Mono',monospace;}
-
-  /* Notice box */
   .notice{background:#0d1a00;border:1px solid #e8ff47;border-radius:2px;padding:24px 28px;margin-bottom:24px;}
   .notice-uz{font-size:15px;line-height:1.8;color:#e8ff47;margin-bottom:8px;}
   .notice-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7;}
-
   .card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
-  .card-title{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;}
+  .card-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;}
   input,textarea{background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:12px 16px;width:100%;transition:border-color .2s;outline:none;resize:none;}
   input:focus,textarea:focus{border-color:var(--accent);}
   input::placeholder,textarea::placeholder{color:#333;}
@@ -30,18 +27,10 @@
   .btn{display:block;background:var(--accent);color:#000;border:none;border-radius:2px;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;padding:18px 32px;cursor:pointer;width:100%;margin-top:16px;text-transform:uppercase;letter-spacing:.05em;}
   .btn:hover{background:#d4eb00;}
   .btn:disabled{background:#222;color:#444;cursor:not-allowed;}
-  .btn-outline{display:block;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:2px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;padding:14px 32px;cursor:pointer;width:100%;margin-top:12px;text-transform:uppercase;letter-spacing:.05em;}
+  .btn-outline{display:block;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:2px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;padding:14px 32px;cursor:pointer;width:100%;margin-top:12px;text-transform:uppercase;}
   .btn-outline:hover{background:#0d1a00;}
-
-  /* Password gate */
-  #passwordGate{display:block;}
-  #mainApp{display:none;}
-  .pass-hint{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;}
-
-  /* Request form */
   #requestForm{display:block;}
   #requestSuccess{display:none;background:#0d1a00;border:1px solid var(--success);border-radius:2px;padding:20px 24px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--success);line-height:1.8;}
-
   #statusBox{display:none;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:24px 28px;margin-bottom:16px;}
   #statusBox.active{display:block;}
   .step{display:flex;align-items:center;gap:10px;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
@@ -89,134 +78,85 @@
     <div class="subtitle">→ профиль · посты · транскрипции · TOF/MOF/BOF · отчёт</div>
   </header>
 
-  <!-- Уведомление -->
   <div class="notice">
-    <div class="notice-uz">
-      🤝 Bu vosita foydalanish uchun to'lov talab qiladi — lekin biz bu yerda pul ishlashni maqsad qilmaganmiz. To'lov faqat xizmat xarajatlarini (server, AI, skraping) qoplash uchun olinadi. Tushunganingiz uchun rahmat!
+    <div class="notice-uz">🤝 Bu vosita foydalanish uchun to'lov talab qiladi — lekin biz bu yerda pul ishlashni maqsad qilmaganmiz. To'lov faqat xizmat xarajatlarini (server, AI, skraping) qoplash uchun olinadi. Tushunganingiz uchun rahmat!</div>
+    <div class="notice-sub">→ To'lov qilish yoki savol uchun: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">// username kiriting</div>
+    <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov" />
+    <button class="btn" id="analyzeBtn">&#9654; TAHLIL BOSHLASH</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">// to'lov uchun so'rov · запросить доступ</div>
+    <div id="requestForm">
+      <div class="input-group">
+        <input type="text" id="reqName" placeholder="Ismingiz / Ваше имя" />
+        <input type="text" id="reqTelegram" placeholder="Telegram username (@username)" />
+        <textarea id="reqComment" rows="3" placeholder="Izoh / Комментарий (ixtiyoriy)"></textarea>
+      </div>
+      <button class="btn-outline" id="requestBtn">📩 SO'ROV YUBORISH</button>
     </div>
-    <div class="notice-sub">
-      → Kirish uchun parol kerak · Parol olish uchun quyida so'rov qoldiring
+    <div id="requestSuccess">
+      ✓ So'rovingiz yuborildi!<br>
+      @Kodiyusufbay siz bilan tez orada bog'lanadi.<br><br>
+      Telegram: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a>
     </div>
   </div>
 
-  <!-- Пароль -->
-  <div id="passwordGate">
-    <div class="card">
-      <div class="card-title">// kirish · вход</div>
-      <input type="password" id="passwordInput" placeholder="Parolni kiriting..." />
-      <div class="pass-hint">→ Parolingiz yo'qmi? Quyida so'rov qoldiring — @Kodiyusufbay siz bilan bog'lanadi</div>
-      <button class="btn" id="enterBtn">KIRISH →</button>
-    </div>
+  <div id="errorBox"></div>
 
-    <!-- Форма запроса -->
-    <div class="card">
-      <div class="card-title">// parol so'rash · запросить доступ</div>
-      <div id="requestForm">
-        <div class="input-group">
-          <input type="text" id="reqName" placeholder="Ismingiz / Ваше имя" />
-          <input type="text" id="reqTelegram" placeholder="Telegram username (@username)" />
-          <textarea id="reqComment" rows="3" placeholder="Izoh / Комментарий (ixtiyoriy)"></textarea>
-        </div>
-        <button class="btn-outline" id="requestBtn">📩 SO'ROV YUBORISH</button>
-      </div>
-      <div id="requestSuccess">
-        ✓ So'rovingiz yuborildi!<br>
-        @Kodiyusufbay siz bilan tez orada bog'lanadi.<br><br>
-        Telegram: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a>
-      </div>
-    </div>
+  <div id="statusBox">
+    <div class="step" id="s1"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="step" id="s2"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="step" id="s3"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="step" id="s4"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   </div>
 
-  <!-- Основное приложение -->
-  <div id="mainApp">
-    <div class="card">
-      <div class="card-title">// username kiriting</div>
-      <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov" />
-      <button class="btn" id="analyzeBtn">&#9654; TAHLIL BOSHLASH</button>
+  <div id="report">
+    <div class="report-top">
+      <div>
+        <div class="label">// hisobot tayyor</div>
+        <div class="report-username"><span>@</span><span id="rUsername"></span></div>
+      </div>
+      <div class="report-meta" id="rMeta"></div>
     </div>
-
-    <div id="errorBox"></div>
-
-    <div id="statusBox">
-      <div class="step" id="s1"><div class="dot"></div><span>Kutilmoqda...</span></div>
-      <div class="step" id="s2"><div class="dot"></div><span>Kutilmoqda...</span></div>
-      <div class="step" id="s3"><div class="dot"></div><span>Kutilmoqda...</span></div>
-      <div class="step" id="s4"><div class="dot"></div><span>Kutilmoqda...</span></div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="section">
+      <div class="section-title">// kontent tahlili · claude ai</div>
+      <div class="section-body" id="rAnalysis"></div>
+      <div class="btn-row">
+        <button class="copy-btn" id="copyBtn">⎘ копировать отчёт</button>
+        <button class="dl-btn" id="dlReportBtn">↓ скачать отчёт .txt</button>
+        <button class="dl-btn" id="dlTranscriptBtn">↓ скачать транскрипции .txt</button>
+      </div>
     </div>
-
-    <div id="report">
-      <div class="report-top">
-        <div>
-          <div class="label">// hisobot tayyor</div>
-          <div class="report-username"><span>@</span><span id="rUsername"></span></div>
-        </div>
-        <div class="report-meta" id="rMeta"></div>
-      </div>
-      <div class="stats-grid" id="statsGrid"></div>
-      <div class="section">
-        <div class="section-title">// kontent tahlili · claude ai</div>
-        <div class="section-body" id="rAnalysis"></div>
-        <div class="btn-row">
-          <button class="copy-btn" id="copyBtn">⎘ копировать отчёт</button>
-          <button class="dl-btn" id="dlReportBtn">↓ скачать отчёт .txt</button>
-          <button class="dl-btn" id="dlTranscriptBtn">↓ скачать транскрипции .txt</button>
-        </div>
-      </div>
-      <div class="transcript-section" id="transcriptSection" style="display:none">
-        <div class="section-title">// video transkripsiyalari</div>
-        <div id="transcriptList"></div>
-      </div>
+    <div class="transcript-section" id="transcriptSection" style="display:none">
+      <div class="section-title">// video transkripsiyalari</div>
+      <div id="transcriptList"></div>
     </div>
   </div>
 </div>
 
 <script>
-// Пароль — поменяй на свой
-var SECRET_PASSWORD = 'analyzer2024';
-
-document.getElementById('enterBtn').addEventListener('click', checkPassword);
-document.getElementById('passwordInput').addEventListener('keydown', function(e){
-  if(e.key === 'Enter') checkPassword();
-});
-document.getElementById('requestBtn').addEventListener('click', sendRequest);
 document.getElementById('analyzeBtn').addEventListener('click', startAnalysis);
+document.getElementById('requestBtn').addEventListener('click', sendRequest);
 document.getElementById('copyBtn').addEventListener('click', copyReport);
 document.getElementById('dlReportBtn').addEventListener('click', downloadReport);
 document.getElementById('dlTranscriptBtn').addEventListener('click', downloadTranscripts);
-
-function checkPassword() {
-  var pass = document.getElementById('passwordInput').value.trim();
-  if (pass === SECRET_PASSWORD) {
-    document.getElementById('passwordGate').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-  } else {
-    document.getElementById('passwordInput').style.borderColor = 'var(--accent2)';
-    setTimeout(function(){ document.getElementById('passwordInput').style.borderColor = ''; }, 1000);
-  }
-}
 
 async function sendRequest() {
   var name = document.getElementById('reqName').value.trim();
   var telegram = document.getElementById('reqTelegram').value.trim();
   var comment = document.getElementById('reqComment').value.trim();
-
-  if (!name || !telegram) {
-    alert('Ism va Telegram username kiriting!');
-    return;
-  }
-
+  if (!name || !telegram) { alert('Ism va Telegram username kiriting!'); return; }
   var btn = document.getElementById('requestBtn');
   btn.disabled = true;
   btn.textContent = 'Yuborilmoqda...';
-
-  // Отправляем в Telegram через Bot API
-  var message = '🔔 YANGI SO\'ROV — Instagram Analyzer\n\n' +
-    '👤 Ism: ' + name + '\n' +
-    '📱 Telegram: ' + telegram + '\n' +
-    '💬 Izoh: ' + (comment || '—') + '\n\n' +
-    '⏰ Vaqt: ' + new Date().toLocaleString('ru');
-
+  var message = '🔔 YANGI SO\'ROV — Instagram Analyzer\n\n👤 Ism: ' + name + '\n📱 Telegram: ' + telegram + '\n💬 Izoh: ' + (comment || '—') + '\n\n⏰ Vaqt: ' + new Date().toLocaleString('ru');
   try {
     await fetch('/api/notify', {
       method: 'POST',
@@ -224,7 +164,6 @@ async function sendRequest() {
       body: JSON.stringify({ message: message })
     });
   } catch(e) {}
-
   document.getElementById('requestForm').style.display = 'none';
   document.getElementById('requestSuccess').style.display = 'block';
   btn.disabled = false;
@@ -253,14 +192,12 @@ function showError(msg) {
 async function startAnalysis() {
   var username = document.getElementById('username').value.trim().replace('@','');
   if (!username) { alert('Username kiriting!'); return; }
-
   document.getElementById('errorBox').className = '';
   document.getElementById('report').className = '';
   document.getElementById('transcriptSection').style.display = 'none';
   document.getElementById('analyzeBtn').disabled = true;
   document.getElementById('statusBox').className = 'active';
   setProgress(0);
-
   setStep('s1', 'running', 'Apify scraper ishga tushirilmoqda...');
   setStep('s2', 'pending', 'Kutilmoqda...');
   setStep('s3', 'pending', 'Kutilmoqda...');
@@ -274,23 +211,19 @@ async function startAnalysis() {
     });
     var startData = await startRes.json();
     if (!startRes.ok || startData.error) throw new Error(startData.error);
-
     var runId = startData.runId;
     var datasetId = startData.datasetId;
-
     setStep('s1', 'done', 'Apify ishga tushdi ✓');
-    setStep('s2', 'running', 'Instagram scraping + video transkripsiya...');
+    setStep('s2', 'running', 'Instagram scraping + video tahlil...');
     setProgress(10);
 
     var attempts = 0;
     var data = null;
-
     while (attempts < 60) {
       await new Promise(function(r){ setTimeout(r, 5000); });
       attempts++;
       setProgress(10 + Math.min(attempts / 60 * 70, 70));
       setStep('s2', 'running', 'Ishlanmoqda... ' + (attempts * 5) + 's');
-
       var pollRes = await fetch('/api/report', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -304,7 +237,7 @@ async function startAnalysis() {
     if (!data) throw new Error('Timeout — qayta urinib ko\'ring');
 
     setStep('s2', 'done', 'Instagram ma\'lumotlari olindi ✓');
-    setStep('s3', 'done', 'Transkripsiya: ' + data.transcribedCount + ' ta video ✓');
+    setStep('s3', 'done', 'Postlar: ' + data.postsCount + ' ✓');
     setStep('s4', 'done', 'Claude tahlili tayyor ✓');
     setProgress(100);
 
@@ -312,15 +245,14 @@ async function startAnalysis() {
     document.getElementById('rMeta').innerHTML =
       'Sana: ' + new Date().toLocaleDateString('ru') + '<br>' +
       'Postlar: ' + data.postsCount + '<br>' +
-      'Transkripsiya: ' + data.transcribedCount + ' video<br>' +
-      'Powered by Apify + Whisper + Claude';
+      'Powered by Apify + Claude';
 
     document.getElementById('statsGrid').innerHTML = [
       {val: typeof data.followers === 'number' ? data.followers.toLocaleString('ru') : data.followers, lbl: 'Followers'},
       {val: data.avgLikes.toLocaleString('ru'), lbl: "O'rt. layk"},
       {val: data.avgComments.toLocaleString('ru'), lbl: "O'rt. izoh"},
       {val: data.erRate + '%', lbl: 'ER Rate'},
-      {val: data.transcribedCount + ' video', lbl: 'Transkripsiya'},
+      {val: data.videoCount + ' video', lbl: 'Videolar'},
     ].map(function(s){
       return '<div class="stat-card"><div class="stat-val">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';
     }).join('');
@@ -343,12 +275,9 @@ async function startAnalysis() {
     window._reportText = '@' + data.username + ' — Instagram Report\n' + '='.repeat(60) + '\n\nFollowers: ' + data.followers + ' | ER: ' + data.erRate + '%\nSana: ' + new Date().toLocaleDateString('ru') + '\n\n' + data.analysis;
 
     if (data.transcripts) {
-      window._transcriptText = 'TRANSKRIPSIYALAR @' + data.username + '\n' + '='.repeat(60) + '\nSana: ' + new Date().toLocaleDateString('ru') + '\n\n';
+      window._transcriptText = 'TRANSKRIPSIYALAR @' + data.username + '\n' + '='.repeat(60) + '\n\n';
       data.transcripts.forEach(function(t, i) {
-        window._transcriptText += '--- VIDEO ' + (i+1) + ' ---\n';
-        window._transcriptText += 'Sana: ' + t.date + ' | Layk: ' + t.likes + ' | Izoh: ' + t.comments + '\n';
-        window._transcriptText += 'Tavsif: ' + t.caption + '\n\n';
-        window._transcriptText += t.transcript + '\n\n';
+        window._transcriptText += '--- VIDEO ' + (i+1) + ' ---\n' + t.date + ' | ❤️ ' + t.likes + '\n' + t.caption + '\n\n' + t.transcript + '\n\n';
       });
     }
 
@@ -358,7 +287,6 @@ async function startAnalysis() {
   } catch(e) {
     showError(e.message);
   }
-
   document.getElementById('analyzeBtn').disabled = false;
 }
 
