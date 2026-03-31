@@ -14,25 +14,13 @@ export default async function handler(req, res) {
     try {
       const videoUrl = reel.videoUrl;
       if (!videoUrl) return null;
-
       const videoRes = await fetch(videoUrl);
       if (!videoRes.ok) return null;
       const videoBuffer = await videoRes.arrayBuffer();
       if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
-
       const uint8Array = new Uint8Array(videoBuffer);
       const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
-
-      // Убрали prompt — он мешал, оставили только язык и модель
-      const beforeFile = '--' + boundary + '\r\n' +
-        'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n' +
-        '--' + boundary + '\r\n' +
-        'Content-Disposition: form-data; name="language"\r\n\r\nuz\r\n' +
-        '--' + boundary + '\r\n' +
-        'Content-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n' +
-        '--' + boundary + '\r\n' +
-        'Content-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
-
+      const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="language"\r\n\r\nuz\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
       const afterFile = '\r\n--' + boundary + '--\r\n';
       const beforeBytes = new TextEncoder().encode(beforeFile);
       const afterBytes = new TextEncoder().encode(afterFile);
@@ -40,70 +28,103 @@ export default async function handler(req, res) {
       body.set(beforeBytes, 0);
       body.set(uint8Array, beforeBytes.length);
       body.set(afterBytes, beforeBytes.length + uint8Array.length);
-
       const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + GROQ_KEY,
-          'Content-Type': 'multipart/form-data; boundary=' + boundary
-        },
+        headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'multipart/form-data; boundary=' + boundary },
         body: body
       });
-
-      if (!groqRes.ok) {
-        const err = await groqRes.text();
-        console.log('Groq error:', err);
-        return null;
-      }
-
-      const rawText = await groqRes.text();
-      if (!rawText) return null;
-
-      // Постобработка через Claude — исправляем орфографию узбекского
-      const fixRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: 'Bu O\'zbek tilida transkripsiya. Iltimos faqat matnni to\'g\'irla — so\'zlarni to\'g\'ri yoz, bo\'sh joylarni qo\'y, lekin ma\'noni o\'zgartirma. Faqat to\'g\'irlangan matnni qaytар, boshqa hech narsa yozma.\n\nMatn:\n' + rawText
-          }]
-        })
-      });
-
-      if (!fixRes.ok) return rawText;
-      const fixData = await fixRes.json();
-      return fixData.content[0].text || rawText;
-
-    } catch(e) {
-      console.log('Transcribe error:', e.message);
-      return null;
-    }
+      if (!groqRes.ok) return null;
+      return await groqRes.text() || null;
+    } catch(e) { return null; }
   }
 
   try {
-    const results = await Promise.all(reels.map(async (reel) => {
+    const transcriptResults = await Promise.all(reels.map(async (reel) => {
       const transcript = await transcribeReel(reel);
       return {
-        date: reel.timestamp ? new Date(reel.timestamp * 1000).toLocaleDateString('ru') : '?',
+        shortCode: reel.shortCode,
+        url: reel.url,
+        caption: (reel.caption || '').slice(0, 300),
         likes: reel.likesCount || 0,
         comments: reel.commentsCount || 0,
-        caption: (reel.caption || '').slice(0, 200),
-        transcript: transcript || '(transkripsiya muvaffaqiyatsiz)'
+        date: reel.timestamp ? new Date(reel.timestamp * 1000).toLocaleDateString('ru') : '?',
+        transcript: transcript || '(mavjud emas)'
       };
     }));
 
-    const transcribedCount = results.filter(r => !r.transcript.startsWith('(transkripsiya')).length;
+    const transcribedCount = transcriptResults.filter(r => r.transcript !== '(mavjud emas)').length;
 
-    const transcriptText = results.map((r, i) =>
-      '[' + (i+1) + '] ❤️ ' + r.likes + ' 💬 ' + r.comments + '\n' + r.caption + '\n🎙 ' + r.transcript
+    const reelsForClaude = transcriptResults.map((r, i) =>
+      'REEL ' + (i+1) + ':\n' +
+      'Caption: ' + r.caption + '\n' +
+      'Lайки: ' + r.likes + ' | Комменты: ' + r.comments + '\n' +
+      'Транскрипция: ' + r.transcript
     ).join('\n\n---\n\n');
+
+    const avgLikes = Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length);
+
+    const prompt = `Ты — Senior Content Strategist с глубокой экспертизой в воронках контента и сценарном анализе.
+
+Аккаунт: @${username}
+Проанализировано reels: ${reels.length}
+Транскрибировано: ${transcribedCount}
+Средние лайки: ${avgLikes}
+
+ТРАНСКРИПЦИИ:
+${reelsForClaude}
+
+Верни ТОЛЬКО валидный JSON без markdown, без backticks, без пояснений. Только JSON:
+
+{
+  "funnel": {
+    "tof": <число % от 0 до 100>,
+    "mof": <число % от 0 до 100>,
+    "bof": <число % от 0 до 100>,
+    "ideal": {"tof": 60, "mof": 30, "bof": 10},
+    "verdict": "<2-3 предложения о балансе воронки>",
+    "niche": "<определи нишу автора>",
+    "niche_avg_er": "<средний ER в этой нише, например 2-4%>"
+  },
+  "missed_leads": {
+    "count": <примерное число упущенных заявок>,
+    "explanation": "<как посчитал>"
+  },
+  "videos": [
+    {
+      "index": 1,
+      "funnel_type": "<TOF|MOF|BOF>",
+      "hook_score": <число 1-10>,
+      "hook_analysis": "<анализ первых 3 секунд>",
+      "emotional_trigger": "<какую эмоцию использует: страх/надежда/любопытство/гордость/стыд/другое>",
+      "actual_likes": <число>,
+      "expected_likes": <число — сколько должно было набрать>,
+      "performance_gap": "<почему не набрало — 2-3 причины>",
+      "viral_potential": <число 1-10>,
+      "summary": "<краткий вывод по видео>",
+      "deep_analysis": {
+        "sentences": [
+          {
+            "original": "<оригинальная фраза из транскрипции>",
+            "problem": "<почему не сработало>",
+            "fix": "<исправленный вариант>",
+            "why_fix_works": "<почему новый вариант лучше>",
+            "trigger": "<эмоциональный триггер в новом варианте>"
+          }
+        ],
+        "outcome": "<что произойдёт если применить все исправления — рост просмотров, подписчиков, сохранений>"
+      }
+    }
+  ],
+  "executive_summary": "<3-4 предложения об аккаунте в целом>",
+  "funnel_recommendations": "<что нужно изменить в соотношении TOF/MOF/BOF>",
+  "top_recommendations": [
+    "<рекомендация 1>",
+    "<рекомендация 2>",
+    "<рекомендация 3>",
+    "<рекомендация 4>",
+    "<рекомендация 5>"
+  ]
+}`;
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -114,25 +135,24 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 3000,
-        messages: [{
-          role: 'user',
-          content: 'Ты — Senior Content Strategist.\nАккаунт: @' + username + '\nТранскрибировано: ' + transcribedCount + ' из ' + reels.length + ' reels\n\nТРАНСКРИПЦИИ REELS (узбекский язык):\n' + transcriptText + '\n\nСоставь профессиональный отчёт на русском:\n\n## 📊 EXECUTIVE SUMMARY\nКто автор, о чём говорит, главный инсайт из транскрипций.\n\n## 🎙 АНАЛИЗ РЕЧИ И ПОДАЧИ\n- Стиль речи, словарный запас, темп\n- Повторяющиеся фразы и триггеры\n- Как начинает видео (хук)\n- Как заканчивает (CTA)\n\n## 🎯 КОНТЕНТ-МИКС И ВОРОНКА TOF/MOF/BOF\nРаспредели каждый рилс по воронке и дай % соотношение.\n\n## 🔥 САМЫЕ СИЛЬНЫЕ МОМЕНТЫ\nКакие фразы и темы работают лучше всего.\n\n## ⚠️ ЗОНЫ РОСТА\nЧто можно улучшить в подаче и контенте.\n\n## 💡 РЕКОМЕНДАЦИИ\n5 конкретных советов основанных на транскрипциях.'
-        }]
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: prompt }]
       })
     });
 
     if (!claudeRes.ok) throw new Error('Claude error: ' + claudeRes.status);
     const claudeData = await claudeRes.json();
+    let analysisText = claudeData.content[0].text.trim();
+    analysisText = analysisText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const analysis = JSON.parse(analysisText);
 
     return res.status(200).json({
       username,
-      followers: '?',
-      avgLikes: Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length),
+      avgLikes,
       transcribedCount,
       totalSelected: reels.length,
-      transcripts: results,
-      analysis: claudeData.content[0].text
+      transcripts: transcriptResults,
+      analysis
     });
 
   } catch(e) {
