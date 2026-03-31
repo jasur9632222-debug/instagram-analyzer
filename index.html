@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uz">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Instagram Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--accent:#e8ff47;--accent2:#ff6b35;--text:#f0f0f0;--muted:#555;--success:#47ffb2;--tof:#e8ff47;--mof:#47b2ff;--bof:#ff6b35;}
@@ -16,14 +18,12 @@
   h1{font-size:clamp(32px,6vw,52px);font-weight:800;line-height:1;letter-spacing:-.02em;}
   h1 span{color:var(--accent);}
   .subtitle{margin-top:12px;color:var(--muted);font-size:13px;font-family:'IBM Plex Mono',monospace;}
-  .notice{background:#0d1a00;border:1px solid var(--accent);border-radius:2px;padding:24px 28px;margin-bottom:24px;}
-  .notice-uz{font-size:14px;line-height:1.8;color:var(--accent);margin-bottom:6px;}
-  .notice-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+  .notice{background:#0d1a00;border:1px solid var(--accent);border-radius:2px;padding:20px 24px;margin-bottom:24px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);line-height:1.8;}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
   .card-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;}
   input,textarea{background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:12px 16px;width:100%;transition:border-color .2s;outline:none;resize:none;}
   input:focus,textarea:focus{border-color:var(--accent);}
-  input::placeholder,textarea::placeholder{color:#333;}
+  input::placeholder{color:#333;}
   .input-group{display:flex;flex-direction:column;gap:12px;}
   .mode-tabs{display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:2px;overflow:hidden;}
   .mode-tab{flex:1;background:transparent;border:none;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:12px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .2s;border-right:1px solid var(--border);}
@@ -36,9 +36,6 @@
   .btn:hover{background:#d4eb00;}
   .btn:disabled{background:#222;color:#444;cursor:not-allowed;}
   .btn-sm{font-size:13px;padding:12px 20px;margin-top:12px;}
-  .btn-outline{display:block;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:2px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:10px 20px;cursor:pointer;text-transform:uppercase;margin-top:12px;width:100%;}
-  .btn-outline:hover{background:#0d1a00;}
-  #requestSuccess{display:none;background:#0d1a00;border:1px solid var(--success);border-radius:2px;padding:20px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--success);line-height:1.8;}
   #reelsPicker{display:none;background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:24px;margin-bottom:16px;}
   #reelsPicker.visible{display:block;animation:fadeIn .3s ease;}
   .picker-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;}
@@ -70,8 +67,6 @@
   #report{display:none;}
   #report.visible{display:block;animation:fadeIn .4s ease;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-
-  /* Report styles */
   .report-hero{background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:32px;margin-bottom:16px;}
   .report-username{font-size:36px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px;}
   .report-username span{color:var(--accent);}
@@ -80,80 +75,87 @@
   .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:20px;}
   .stat-val{font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-.02em;}
   .stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.1em;}
-  .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;margin-top:4px;}
-  .stat-sub.good{color:var(--success);}
-  .stat-sub.bad{color:var(--accent2);}
-
-  /* Funnel section */
   .funnel-section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
   .section-title{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border);}
-  .funnel-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;}
-  .funnel-chart-wrap{position:relative;width:200px;height:200px;margin:0 auto;}
+  .funnel-grid{display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:center;}
+  .funnel-chart-wrap{position:relative;width:200px;height:200px;}
   .funnel-legend{display:flex;flex-direction:column;gap:16px;}
   .funnel-item{display:flex;flex-direction:column;gap:6px;}
   .funnel-label{display:flex;justify-content:space-between;align-items:center;}
   .funnel-name{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;}
   .funnel-pct{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);}
   .funnel-bar-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
-  .funnel-bar{height:100%;border-radius:3px;transition:width 1s ease;}
+  .funnel-bar{height:100%;border-radius:3px;}
   .funnel-ideal{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);}
   .funnel-verdict{background:#0d1a00;border:1px solid #1a2a00;border-radius:2px;padding:16px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaa;line-height:1.8;}
-
-  /* Missed leads */
   .missed-leads{background:#1a0800;border:1px solid var(--accent2);border-radius:2px;padding:28px;margin-bottom:16px;text-align:center;}
   .missed-number{font-size:64px;font-weight:800;color:var(--accent2);letter-spacing:-.02em;line-height:1;}
   .missed-label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-top:8px;}
   .missed-exp{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666;margin-top:12px;line-height:1.7;}
-
-  /* Video cards */
-  .videos-section{margin-bottom:16px;}
-  .video-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;margin-bottom:12px;overflow:hidden;transition:border-color .2s;}
-  .video-card:hover{border-color:var(--accent);}
+  .video-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;margin-bottom:12px;overflow:hidden;}
   .video-card-header{padding:20px 24px;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:start;}
-  .video-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:4px 10px;border-radius:2px;white-space:nowrap;margin-top:2px;}
+  .video-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:4px 10px;border-radius:2px;white-space:nowrap;}
   .badge-tof{background:#1a1a00;color:var(--tof);border:1px solid #2a2a00;}
   .badge-mof{background:#001a2a;color:var(--mof);border:1px solid #002a3a;}
   .badge-bof{background:#1a0800;color:var(--bof);border:1px solid #2a1000;}
-  .video-info{flex:1;}
   .video-caption{font-size:13px;color:#ccc;margin-bottom:8px;line-height:1.5;}
-  .video-metrics{display:flex;gap:16px;flex-wrap:wrap;}
+  .video-metrics{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;}
   .metric{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
   .metric span{color:var(--text);}
   .video-scores{display:flex;flex-direction:column;gap:8px;min-width:140px;}
   .score-row{display:flex;flex-direction:column;gap:3px;}
-  .score-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;}
+  .score-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;}
   .score-bar-wrap{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
   .score-bar{height:100%;border-radius:2px;}
   .score-val{font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:right;}
   .performance-gap{background:#0a0a0a;border-top:1px solid var(--border);padding:12px 24px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);line-height:1.7;}
-  .expand-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap;margin-top:8px;cursor:pointer;}
+  .expand-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);cursor:pointer;margin-top:4px;}
   .video-detail{display:none;border-top:1px solid var(--border);padding:24px;}
   .video-detail.open{display:block;animation:fadeIn .3s ease;}
   .detail-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;}
-  .sentence-analysis{display:flex;flex-direction:column;gap:16px;}
-  .sentence-item{background:var(--bg);border-radius:2px;padding:16px;}
-  .sentence-original{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#888;text-decoration:line-through;margin-bottom:8px;}
-  .sentence-problem{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);margin-bottom:8px;}
+  .sentence-item{background:var(--bg);border-radius:2px;padding:16px;margin-bottom:12px;}
+  .sentence-original{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#888;text-decoration:line-through;margin-bottom:6px;}
+  .sentence-problem{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);margin-bottom:6px;}
   .sentence-fix{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--success);margin-bottom:6px;}
   .sentence-why{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666;margin-bottom:6px;}
   .sentence-trigger{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;background:#0a1a0a;border:1px solid #1a3a1a;color:var(--success);border-radius:2px;}
   .outcome-box{background:#0d1a00;border:1px solid #1a3a00;border-radius:2px;padding:16px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaccaa;line-height:1.8;}
   .hook-analysis{background:#0a0a1a;border:1px solid #1a1a2a;border-radius:2px;padding:16px;margin-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaaacc;line-height:1.8;}
   .emotional-trigger{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;background:#1a0a1a;border:1px solid #3a1a3a;color:#cc88ff;border-radius:2px;margin-bottom:12px;}
-
-  /* Recommendations */
   .recs-section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
   .rec-item{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--border);}
   .rec-item:last-child{border-bottom:none;}
   .rec-num{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:800;color:var(--accent);flex-shrink:0;width:32px;}
   .rec-text{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ccc;line-height:1.8;}
-
   .btn-row{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
   .copy-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px 18px;cursor:pointer;border-radius:2px;}
   .copy-btn:hover{border-color:var(--accent);color:var(--accent);}
   .dl-btn{background:var(--accent);border:none;color:#000;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;padding:10px 18px;cursor:pointer;border-radius:2px;}
+  .dl-btn:hover{background:#d4eb00;}
+  .pdf-btn{background:#ff6b35;border:none;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;padding:10px 18px;cursor:pointer;border-radius:2px;}
+  .pdf-btn:hover{background:#e55a25;}
 
-  @media(max-width:600px){.funnel-grid{grid-template-columns:1fr;}.video-card-header{grid-template-columns:auto 1fr;}.video-scores{display:none;}}
+  /* Paywall modal */
+  .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;}
+  .modal-overlay.visible{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:40px;max-width:480px;width:90%;text-align:center;}
+  .modal-icon{font-size:48px;margin-bottom:16px;}
+  .modal-title{font-size:24px;font-weight:800;margin-bottom:12px;}
+  .modal-title span{color:var(--accent);}
+  .modal-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);line-height:1.9;margin-bottom:24px;}
+  .plans{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px;}
+  .plan{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:16px;cursor:pointer;transition:all .2s;}
+  .plan:hover,.plan.selected{border-color:var(--accent);background:#111a00;}
+  .plan-name{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+  .plan-price{font-size:22px;font-weight:800;color:var(--accent);}
+  .plan-desc{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;}
+  .modal-input{background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:12px 16px;width:100%;outline:none;margin-bottom:8px;}
+  .modal-input:focus{border-color:var(--accent);}
+  .modal-btn{background:var(--accent);color:#000;border:none;border-radius:2px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;padding:14px 32px;cursor:pointer;width:100%;text-transform:uppercase;margin-top:8px;}
+  .modal-btn:hover{background:#d4eb00;}
+  .modal-close{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer;margin-top:16px;display:block;}
+  .modal-close:hover{color:var(--text);}
+  .limit-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;background:#0d1a00;border:1px solid var(--accent);color:var(--accent);padding:4px 12px;border-radius:2px;margin-left:12px;}
 </style>
 </head>
 <body>
@@ -165,19 +167,22 @@
   </header>
 
   <div class="notice">
-    <div class="notice-uz">🤝 Bu vosita foydalanish uchun to'lov talab qiladi — xizmat xarajatlarini qoplash uchun olinadi.</div>
-    <div class="notice-sub">→ Savol uchun: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a></div>
+    🎁 Birinchi tahlil — <strong>BEPUL</strong>. Keyingilar uchun obuna kerak.<br>
+    → Savol: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a>
   </div>
 
   <div class="card">
-    <div class="card-title">// tahlil turini tanlang</div>
+    <div class="card-title">
+      // tahlil turini tanlang
+      <span class="limit-badge" id="limitBadge">1 ta bepul qoldi</span>
+    </div>
     <div class="mode-tabs">
       <button class="mode-tab active" onclick="setMode('posts',this)">📝 Postlar tahlili</button>
       <button class="mode-tab" onclick="setMode('reels',this)">▶ Reels transkripsiya</button>
     </div>
     <div id="modePostsUI">
       <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov"/>
-      <button class="btn" id="analyzeBtn" onclick="startAnalysis()">▶ TAHLIL BOSHLASH</button>
+      <button class="btn" id="analyzeBtn" onclick="checkLimitAndRun('posts')">▶ TAHLIL BOSHLASH</button>
     </div>
     <div id="modeReelsUI" style="display:none">
       <input type="text" id="reelsUsername" placeholder="username (@ siz)"/>
@@ -188,7 +193,7 @@
         <button class="count-btn" onclick="setCount(20,this)">20</button>
         <button class="count-btn" onclick="setCount(30,this)">30</button>
       </div>
-      <button class="btn btn-sm" id="loadReelsBtn" onclick="loadReels()">▶ REELSLARNI YUKLASH</button>
+      <button class="btn btn-sm" id="loadReelsBtn" onclick="checkLimitAndRun('reels')">▶ REELSLARNI YUKLASH</button>
     </div>
   </div>
 
@@ -208,19 +213,6 @@
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">// to'lov uchun so'rov</div>
-    <div id="requestForm">
-      <div class="input-group">
-        <input type="text" id="reqName" placeholder="Ismingiz / Ваше имя"/>
-        <input type="text" id="reqTelegram" placeholder="Telegram (@username)"/>
-        <textarea id="reqComment" rows="2" placeholder="Izoh (ixtiyoriy)"></textarea>
-      </div>
-      <button class="btn-outline" onclick="sendRequest()">📩 SO'ROV YUBORISH</button>
-    </div>
-    <div id="requestSuccess">✓ So'rovingiz yuborildi! <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a></div>
-  </div>
-
   <div id="errorBox"></div>
   <div id="statusBox">
     <div class="step" id="s1"><div class="dot"></div><span>Kutilmoqda...</span></div>
@@ -233,9 +225,85 @@
   <div id="report"></div>
 </div>
 
+<!-- Paywall Modal -->
+<div class="modal-overlay" id="paywallModal">
+  <div class="modal">
+    <div class="modal-icon">🔒</div>
+    <div class="modal-title">Bepul <span>limit tugadi</span></div>
+    <div class="modal-text">
+      Siz 1 ta bepul tahlildan foydalandingiz.<br>
+      Davom etish uchun obuna tanlang:
+    </div>
+    <div class="plans">
+      <div class="plan" onclick="selectPlan(this,'1 tahlil','$3')">
+        <div class="plan-name">Razoviy</div>
+        <div class="plan-price">$3</div>
+        <div class="plan-desc">1 ta tahlil</div>
+      </div>
+      <div class="plan selected" onclick="selectPlan(this,'10 tahlil','$15')">
+        <div class="plan-name">Paket</div>
+        <div class="plan-price">$15</div>
+        <div class="plan-desc">10 ta tahlil</div>
+      </div>
+      <div class="plan" onclick="selectPlan(this,'20 tahlil/oy','$20')">
+        <div class="plan-name">Obuna</div>
+        <div class="plan-price">$20</div>
+        <div class="plan-desc">20/oy</div>
+      </div>
+    </div>
+    <input class="modal-input" id="payName" placeholder="Ismingiz / Ваше имя"/>
+    <input class="modal-input" id="payPhone" placeholder="Telefon raqam / Telegram (@username)"/>
+    <button class="modal-btn" onclick="submitPaywall()">📩 TO'LOV UCHUN MUROJAAT</button>
+    <span class="modal-close" onclick="closePaywall()">Bekor qilish</span>
+  </div>
+</div>
+
 <script>
 var currentMode='posts', reelLimit=10, reelsData=[], selectedReels=new Set();
 var funnelChart=null;
+var selectedPlan={name:'10 tahlil',price:'$15'};
+
+// Limit system - localStorage based
+function getUsageCount(){return parseInt(localStorage.getItem('ig_analyzer_usage')||'0');}
+function incrementUsage(){localStorage.setItem('ig_analyzer_usage',getUsageCount()+1);}
+function hasProAccess(){return localStorage.getItem('ig_analyzer_pro')==='true';}
+function updateLimitBadge(){
+  var count=getUsageCount();
+  var badge=document.getElementById('limitBadge');
+  if(hasProAccess()){badge.textContent='Pro ✓';badge.style.borderColor='var(--success)';badge.style.color='var(--success)';}
+  else if(count===0){badge.textContent='1 ta bepul qoldi';}
+  else{badge.textContent='Limit tugadi 🔒';badge.style.borderColor='var(--accent2)';badge.style.color='var(--accent2)';}
+}
+
+function checkLimitAndRun(mode){
+  if(hasProAccess()||getUsageCount()<1){
+    if(mode==='posts')startAnalysis();
+    else loadReels();
+  }else{
+    showPaywall();
+  }
+}
+
+function showPaywall(){document.getElementById('paywallModal').className='modal-overlay visible';}
+function closePaywall(){document.getElementById('paywallModal').className='modal-overlay';}
+
+function selectPlan(el,name,price){
+  document.querySelectorAll('.plan').forEach(function(p){p.classList.remove('selected');});
+  el.classList.add('selected');
+  selectedPlan={name:name,price:price};
+}
+
+async function submitPaywall(){
+  var name=document.getElementById('payName').value.trim();
+  var phone=document.getElementById('payPhone').value.trim();
+  if(!name||!phone){alert('Ism va telefon kiriting!');return;}
+  var message='💳 YANGI TO\'LOV SO\'ROVI\n\n👤 Ism: '+name+'\n📱 Kontakt: '+phone+'\n📦 Plan: '+selectedPlan.name+' — '+selectedPlan.price+'\n⏰ Vaqt: '+new Date().toLocaleString('ru');
+  try{
+    await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:message})});
+  }catch(e){}
+  closePaywall();
+  alert('✓ So\'rovingiz yuborildi! @Kodiyusufbay siz bilan bog\'lanadi.');
+}
 
 function setMode(mode,el){
   currentMode=mode;
@@ -265,99 +333,86 @@ function showError(msg){var eb=document.getElementById('errorBox');eb.innerHTML=
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function dlFile(text,name){var b=new Blob([text],{type:'text/plain;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
 
-async function sendRequest(){
-  var name=document.getElementById('reqName').value.trim();
-  var telegram=document.getElementById('reqTelegram').value.trim();
-  var comment=document.getElementById('reqComment').value.trim();
-  if(!name||!telegram){alert('Ism va Telegram kiriting!');return;}
-  var message='🔔 YANGI SO\'ROV\n👤 '+name+'\n📱 '+telegram+'\n💬 '+(comment||'—')+'\n⏰ '+new Date().toLocaleString('ru');
-  try{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:message})});}catch(e){}
-  document.getElementById('requestForm').style.display='none';
-  document.getElementById('requestSuccess').style.display='block';
-}
-
-function scoreColor(score){
-  if(score>=8)return'#47ffb2';
-  if(score>=5)return'#e8ff47';
-  return'#ff6b35';
-}
-
-function funnelColor(type){
-  if(type==='TOF')return'var(--tof)';
-  if(type==='MOF')return'var(--mof)';
-  return'var(--bof)';
-}
-
-function badgeClass(type){
-  if(type==='TOF')return'badge-tof';
-  if(type==='MOF')return'badge-mof';
-  return'badge-bof';
-}
+function scoreColor(s){return s>=8?'#47ffb2':s>=5?'#e8ff47':'#ff6b35';}
+function badgeClass(t){return t==='TOF'?'badge-tof':t==='MOF'?'badge-mof':'badge-bof';}
 
 function renderFunnelChart(funnel){
-  if(funnelChart){funnelChart.destroy();}
+  if(funnelChart)funnelChart.destroy();
   var ctx=document.getElementById('funnelChart');
   if(!ctx)return;
   funnelChart=new Chart(ctx,{
     type:'doughnut',
-    data:{
-      labels:['TOF','MOF','BOF'],
-      datasets:[{data:[funnel.tof,funnel.mof,funnel.bof],backgroundColor:['#e8ff47','#47b2ff','#ff6b35'],borderWidth:0,hoverOffset:4}]
-    },
-    options:{responsive:true,maintainAspectRatio:true,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': '+c.raw+'%';}}}}}
+    data:{labels:['TOF','MOF','BOF'],datasets:[{data:[funnel.tof,funnel.mof,funnel.bof],backgroundColor:['#e8ff47','#47b2ff','#ff6b35'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:true,cutout:'70%',plugins:{legend:{display:false}}}
   });
+}
+
+async function downloadPDF(){
+  var btn=document.querySelector('.pdf-btn');
+  btn.textContent='PDF tayyorlanmoqda...';
+  btn.disabled=true;
+  try{
+    var reportEl=document.getElementById('report');
+    var canvas=await html2canvas(reportEl,{backgroundColor:'#0a0a0a',scale:1.5,useCORS:true,logging:false});
+    var imgData=canvas.toDataURL('image/jpeg',0.85);
+    var {jsPDF}=window.jspdf;
+    var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var pageW=pdf.internal.pageSize.getWidth();
+    var pageH=pdf.internal.pageSize.getHeight();
+    var imgW=pageW;
+    var imgH=canvas.height*imgW/canvas.width;
+    var pages=Math.ceil(imgH/pageH);
+    for(var i=0;i<pages;i++){
+      if(i>0)pdf.addPage();
+      pdf.addImage(imgData,'JPEG',0,-(i*pageH),imgW,imgH);
+    }
+    var username=window._reportData&&window._reportData.username||'report';
+    pdf.save('instagram_analyzer_'+username+'.pdf');
+  }catch(e){alert('PDF xatosi: '+e.message);}
+  btn.textContent='↓ PDF yuklab olish';
+  btn.disabled=false;
 }
 
 function renderReelsReport(data){
   var a=data.analysis;
   var report=document.getElementById('report');
   report.className='visible';
-
   var html='';
 
-  // Hero
   html+='<div class="report-hero">';
-  html+='<div class="label">// hisobot tayyor · reels tahlili</div>';
+  html+='<div class="label">// hisobot · '+new Date().toLocaleDateString('ru')+'</div>';
   html+='<div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
-  html+='<div class="report-summary">'+esc(a.executive_summary||'')+'</div>';
+  if(a.executive_summary)html+='<div class="report-summary">'+esc(a.executive_summary)+'</div>';
   html+='</div>';
 
-  // Stats
   html+='<div class="stats-grid">';
   html+='<div class="stat-card"><div class="stat-val">'+data.totalSelected+'</div><div class="stat-lbl">Reels tahlil</div></div>';
   html+='<div class="stat-card"><div class="stat-val">'+data.transcribedCount+'</div><div class="stat-lbl">Transkripsiya</div></div>';
   html+='<div class="stat-card"><div class="stat-val">'+(data.avgLikes||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>';
-  if(a.funnel){
-    html+='<div class="stat-card"><div class="stat-val">'+a.funnel.niche_avg_er+'</div><div class="stat-lbl">Nisha avg ER</div><div class="stat-sub">'+esc(a.funnel.niche||'')+'</div></div>';
-  }
+  if(a.funnel)html+='<div class="stat-card"><div class="stat-val">'+esc(a.funnel.niche_avg_er||'—')+'</div><div class="stat-lbl">Nisha ER</div></div>';
   html+='</div>';
 
-  // Funnel
   if(a.funnel){
     html+='<div class="funnel-section">';
     html+='<div class="section-title">// TOF / MOF / BOF — kontent voronkasi</div>';
-    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Voronka — bu tomoshabinni notanish odamdan mijozga aylantirish yo\'li. <strong style="color:#ccc">TOF (60%)</strong> — yangi auditoriyani jalb qiladi. <strong style="color:#ccc">MOF (30%)</strong> — ishonch va loyallik yaratadi. <strong style="color:#ccc">BOF (10%)</strong> — sotuvga olib keladi. Noto\'g\'ri nisbat = pul yo\'qotish.</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Voronka — auditoriyani notanishdan mijozga aylantirish yo\'li. <strong style="color:#ccc">TOF 60%</strong> yangi auditoriya. <strong style="color:#ccc">MOF 30%</strong> ishonch. <strong style="color:#ccc">BOF 10%</strong> sotuv.</div>';
     html+='<div class="funnel-grid">';
     html+='<div class="funnel-chart-wrap"><canvas id="funnelChart" width="200" height="200"></canvas></div>';
     html+='<div class="funnel-legend">';
-    var items=[{key:'tof',label:'TOF',color:'var(--tof)',ideal:60},{key:'mof',label:'MOF',color:'var(--mof)',ideal:30},{key:'bof',label:'BOF',color:'var(--bof)',ideal:10}];
-    items.forEach(function(item){
+    [{key:'tof',label:'TOF',color:'var(--tof)',ideal:60},{key:'mof',label:'MOF',color:'var(--mof)',ideal:30},{key:'bof',label:'BOF',color:'var(--bof)',ideal:10}].forEach(function(item){
       var val=a.funnel[item.key]||0;
       var diff=val-item.ideal;
-      var diffStr=diff>0?'+'+diff+'%':diff+'%';
-      var diffColor=Math.abs(diff)<=10?'good':'bad';
       html+='<div class="funnel-item">';
       html+='<div class="funnel-label"><span class="funnel-name" style="color:'+item.color+'">'+item.label+'</span><span class="funnel-pct">'+val+'%</span></div>';
       html+='<div class="funnel-bar-wrap"><div class="funnel-bar" style="width:'+val+'%;background:'+item.color+'"></div></div>';
-      html+='<div class="funnel-ideal">Ideal: '+item.ideal+'% <span class="stat-sub '+diffColor+'">'+diffStr+'</span></div>';
+      html+='<div class="funnel-ideal">Ideal: '+item.ideal+'% <span style="color:'+(Math.abs(diff)<=10?'var(--success)':'var(--accent2)')+';">'+(diff>0?'+':'')+diff+'%</span></div>';
       html+='</div>';
     });
     html+='</div></div>';
-    html+='<div class="funnel-verdict">📊 '+esc(a.funnel.verdict||'')+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
+    if(a.funnel.verdict)html+='<div class="funnel-verdict">'+esc(a.funnel.verdict)+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
     html+='</div>';
   }
 
-  // Missed leads
   if(a.missed_leads){
     html+='<div class="missed-leads">';
     html+='<div class="label">// yo\'qotilgan imkoniyatlar</div>';
@@ -367,67 +422,49 @@ function renderReelsReport(data){
     html+='</div>';
   }
 
-  // Video cards
   if(a.videos&&a.videos.length){
-    html+='<div class="videos-section">';
-    html+='<div class="section-title" style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;">// har bir reel tahlili</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;">// har bir reel tahlili</div>';
     a.videos.forEach(function(v,i){
-      var hookColor=scoreColor(v.hook_score||5);
-      var viralColor=scoreColor(v.viral_potential||5);
-      var expectedMore=v.expected_likes>v.actual_likes;
-      html+='<div class="video-card" id="vc-'+i+'">';
+      var tr=data.transcripts[i]||{};
+      html+='<div class="video-card">';
       html+='<div class="video-card-header" onclick="toggleDetail('+i+')">';
-      html+='<div><span class="video-badge '+badgeClass(v.funnel_type||'TOF')+'">'+esc(v.funnel_type||'?')+'</span></div>';
-      html+='<div class="video-info">';
-      var tr=data.transcripts[i];
-      html+='<div class="video-caption">'+esc((tr&&tr.caption||v.summary||'').slice(0,100))+'</div>';
+      html+='<span class="video-badge '+badgeClass(v.funnel_type||'TOF')+'">'+esc(v.funnel_type||'?')+'</span>';
+      html+='<div>';
+      html+='<div class="video-caption">'+esc((tr.caption||v.summary||'').slice(0,100))+'</div>';
       html+='<div class="video-metrics">';
-      html+='<div class="metric">❤️ <span>'+((tr&&tr.likes)||v.actual_likes||0).toLocaleString('ru')+'</span></div>';
-      html+='<div class="metric">💬 <span>'+((tr&&tr.comments)||0)+'</span></div>';
-      if(v.expected_likes){html+='<div class="metric">🎯 Kutilgan: <span style="color:'+(expectedMore?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+'</span></div>';}
+      html+='<div class="metric">❤️ <span>'+(tr.likes||v.actual_likes||0).toLocaleString('ru')+'</span></div>';
+      html+='<div class="metric">💬 <span>'+(tr.comments||0)+'</span></div>';
+      if(v.expected_likes)html+='<div class="metric">🎯 <span style="color:'+(v.expected_likes>v.actual_likes?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+' kutilgan</span></div>';
       html+='</div>';
       html+='<div class="expand-btn" id="eb-'+i+'">▼ Batafsil tahlil</div>';
       html+='</div>';
       html+='<div class="video-scores">';
-      html+='<div class="score-row"><div class="score-label">Huk kuchi</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+hookColor+'"></div></div><div class="score-val" style="color:'+hookColor+'">'+(v.hook_score||5)+'/10</div></div>';
-      html+='<div class="score-row"><div class="score-label">Viral potensial</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+viralColor+'"></div></div><div class="score-val" style="color:'+viralColor+'">'+(v.viral_potential||5)+'/10</div></div>';
+      html+='<div class="score-row"><div class="score-label">Huk</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+scoreColor(v.hook_score||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.hook_score||5)+'">'+(v.hook_score||5)+'/10</div></div>';
+      html+='<div class="score-row"><div class="score-label">Viral</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+scoreColor(v.viral_potential||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.viral_potential||5)+'">'+(v.viral_potential||5)+'/10</div></div>';
       html+='</div>';
       html+='</div>';
-      if(v.performance_gap){
-        html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
-      }
-      // Detail
+      if(v.performance_gap)html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
       html+='<div class="video-detail" id="vd-'+i+'">';
-      if(v.emotional_trigger){
-        html+='<span class="emotional-trigger">🧠 Trigger: '+esc(v.emotional_trigger)+'</span>';
-      }
-      if(v.hook_analysis){
-        html+='<div class="hook-analysis">🎣 <strong>Huk tahlili:</strong> '+esc(v.hook_analysis)+'</div>';
-      }
-      if(v.deep_analysis&&v.deep_analysis.sentences&&v.deep_analysis.sentences.length){
-        html+='<div class="detail-title">// ssenariy tahlili · jumlama-jumla</div>';
-        html+='<div class="sentence-analysis">';
+      if(v.emotional_trigger)html+='<span class="emotional-trigger">🧠 '+esc(v.emotional_trigger)+'</span>';
+      if(v.hook_analysis)html+='<div class="hook-analysis">🎣 '+esc(v.hook_analysis)+'</div>';
+      if(v.deep_analysis&&v.deep_analysis.sentences){
+        html+='<div class="detail-title">// ssenariy tahlili</div>';
         v.deep_analysis.sentences.forEach(function(s){
           html+='<div class="sentence-item">';
           html+='<div class="sentence-original">❌ '+esc(s.original||'')+'</div>';
           html+='<div class="sentence-problem">Muammo: '+esc(s.problem||'')+'</div>';
           html+='<div class="sentence-fix">✅ '+esc(s.fix||'')+'</div>';
-          html+='<div class="sentence-why">Nima uchun ishlaydi: '+esc(s.why_fix_works||'')+'</div>';
-          if(s.trigger){html+='<span class="sentence-trigger">'+esc(s.trigger)+'</span>';}
+          html+='<div class="sentence-why">'+esc(s.why_fix_works||'')+'</div>';
+          if(s.trigger)html+='<span class="sentence-trigger">'+esc(s.trigger)+'</span>';
           html+='</div>';
         });
-        html+='</div>';
       }
-      if(v.deep_analysis&&v.deep_analysis.outcome){
-        html+='<div class="outcome-box">🚀 <strong>Natija:</strong> '+esc(v.deep_analysis.outcome)+'</div>';
-      }
+      if(v.deep_analysis&&v.deep_analysis.outcome)html+='<div class="outcome-box">🚀 '+esc(v.deep_analysis.outcome)+'</div>';
       html+='</div>';
       html+='</div>';
     });
-    html+='</div>';
   }
 
-  // Recommendations
   if(a.top_recommendations&&a.top_recommendations.length){
     html+='<div class="recs-section">';
     html+='<div class="section-title">// tavsiyalar</div>';
@@ -437,63 +474,41 @@ function renderReelsReport(data){
     html+='</div>';
   }
 
-  // Buttons
   html+='<div class="btn-row">';
   html+='<button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button>';
-  html+='<button class="dl-btn" onclick="downloadTxt()">↓ hisobot .txt</button>';
+  html+='<button class="dl-btn" onclick="downloadTxt()">↓ .txt</button>';
+  html+='<button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button>';
   html+='</div>';
 
   report.innerHTML=html;
-
-  // Draw chart
-  setTimeout(function(){
-    if(a.funnel){renderFunnelChart(a.funnel);}
-  },100);
-
   window._reportData=data;
+
+  setTimeout(function(){if(a.funnel)renderFunnelChart(a.funnel);},100);
   report.scrollIntoView({behavior:'smooth'});
 }
 
 function toggleDetail(i){
   var vd=document.getElementById('vd-'+i);
   var eb=document.getElementById('eb-'+i);
-  if(vd.classList.contains('open')){
-    vd.classList.remove('open');
-    eb.textContent='▼ Batafsil tahlil';
-  }else{
-    vd.classList.add('open');
-    eb.textContent='▲ Yopish';
-  }
+  if(vd.classList.contains('open')){vd.classList.remove('open');eb.textContent='▼ Batafsil tahlil';}
+  else{vd.classList.add('open');eb.textContent='▲ Yopish';}
 }
 
-function copyTxt(){
-  if(!window._reportData)return;
-  navigator.clipboard.writeText(buildTxt(window._reportData));
-}
-
-function downloadTxt(){
-  if(!window._reportData)return;
-  dlFile(buildTxt(window._reportData),'report_'+(window._reportData.username||'ig')+'.txt');
-}
+function copyTxt(){if(window._reportData)navigator.clipboard.writeText(buildTxt(window._reportData));}
+function downloadTxt(){if(window._reportData)dlFile(buildTxt(window._reportData),'report_'+(window._reportData.username||'ig')+'.txt');}
 
 function buildTxt(d){
   var t='@'+(d.username||'')+' — Reels Report\n'+'='.repeat(60)+'\n\n';
   if(d.analysis){
     t+='EXECUTIVE SUMMARY:\n'+(d.analysis.executive_summary||'')+'\n\n';
-    if(d.analysis.funnel){t+='VORONKA: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';}
-    if(d.analysis.missed_leads){t+='YO\'QOTILGAN: ~'+d.analysis.missed_leads.count+' so\'rov\n\n';}
-    if(d.analysis.videos){
-      d.analysis.videos.forEach(function(v,i){
-        t+='REEL '+(i+1)+' ['+v.funnel_type+']\n';
-        t+='Huk: '+v.hook_score+'/10 | Viral: '+v.viral_potential+'/10\n';
-        t+=v.performance_gap+'\n\n';
-      });
-    }
+    if(d.analysis.funnel)t+='VORONKA: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';
+    if(d.analysis.missed_leads)t+='YO\'QOTILGAN: ~'+d.analysis.missed_leads.count+'\n\n';
+    if(d.analysis.videos)d.analysis.videos.forEach(function(v,i){t+='REEL '+(i+1)+' ['+v.funnel_type+']\nHuk: '+v.hook_score+'/10 | Viral: '+v.viral_potential+'/10\n'+(v.performance_gap||'')+'\n\n';});
+    if(d.analysis.top_recommendations)d.analysis.top_recommendations.forEach(function(r,i){t+=(i+1)+'. '+r+'\n';});
   }
   return t;
 }
 
-// Posts mode
 async function startAnalysis(){
   var username=document.getElementById('username').value.trim().replace('@','');
   if(!username){alert('Username kiriting!');return;}
@@ -525,6 +540,8 @@ async function startAnalysis(){
       if(pollData.status==='done'){data=pollData;break;}
     }
     if(!data)throw new Error('Timeout');
+    incrementUsage();
+    updateLimitBadge();
     setStep('s2','done','✓');setStep('s3','done','✓');setStep('s4','done','✓');
     setProgress(100);
     var report=document.getElementById('report');
@@ -536,13 +553,14 @@ async function startAnalysis(){
     '<div class="stat-card"><div class="stat-val">'+data.erRate+'%</div><div class="stat-lbl">ER Rate</div></div>'+
     '<div class="stat-card"><div class="stat-val">'+data.postsCount+'</div><div class="stat-lbl">Postlar</div></div>'+
     '</div>'+
-    '<div class="recs-section"><div class="section-title">// tahlil · claude ai</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;line-height:1.9;color:#ccc;white-space:pre-wrap;">'+esc(data.analysis)+'</div></div>';
+    '<div class="recs-section"><div class="section-title">// tahlil · claude ai</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;line-height:1.9;color:#ccc;white-space:pre-wrap;">'+esc(data.analysis)+'</div></div>'+
+    '<div class="btn-row"><button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button><button class="dl-btn" onclick="downloadTxt()">↓ .txt</button><button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button></div>';
+    window._reportData=data;
     report.scrollIntoView({behavior:'smooth'});
   }catch(e){showError(e.message);}
   document.getElementById('analyzeBtn').disabled=false;
 }
 
-// Reels mode
 async function loadReels(){
   var username=document.getElementById('reelsUsername').value.trim().replace('@','');
   if(!username){alert('Username kiriting!');return;}
@@ -567,7 +585,7 @@ function renderPicker(reels){
   document.getElementById('reelsGrid').innerHTML=reels.map(function(r,i){
     var cap=esc((r.caption||'(tavsif yo\'q)').slice(0,80));
     var date=r.timestamp?new Date(r.timestamp*1000).toLocaleDateString('ru'):'—';
-    return '<div class="reel-item" id="ri-'+i+'" onclick="toggleReel('+i+')">'+'<div class="reel-check" id="rc-'+i+'">✓</div>'+'<div><div class="reel-caption">'+cap+'</div>'+'<div class="reel-stats">❤️ '+(r.likesCount||0).toLocaleString('ru')+' 💬 '+(r.commentsCount||0)+'</div></div>'+'<div class="reel-date">'+date+'</div></div>';
+    return '<div class="reel-item" id="ri-'+i+'" onclick="toggleReel('+i+')">'+'<div class="reel-check" id="rc-'+i+'">✓</div>'+'<div><div class="reel-caption">'+cap+'</div><div class="reel-stats">❤️ '+(r.likesCount||0).toLocaleString('ru')+' 💬 '+(r.commentsCount||0)+'</div></div>'+'<div class="reel-date">'+date+'</div></div>';
   }).join('');
 }
 
@@ -591,25 +609,28 @@ async function startReelsAnalysis(){
   document.getElementById('transcribeBtn').disabled=true;
   document.getElementById('statusBox').className='active';
   setProgress(0);
-  setStep('s1','running',selected.length+' ta reel transkripsiyaga yuborilmoqda...');
+  setStep('s1','running',selected.length+' ta reel yuborilmoqda...');
   setStep('s2','pending','Kutilmoqda...');setStep('s3','pending','Kutilmoqda...');setStep('s4','pending','Kutilmoqda...');
   try{
     setProgress(10);
     var res=await fetch('/api/transcribe-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,reels:selected})});
-    setStep('s1','done','So\'rov yuborildi ✓');
+    setStep('s1','done','✓');
     setStep('s2','running','Transkripsiya va tahlil...');
     setProgress(50);
     var data=await res.json();
     if(!res.ok||data.error)throw new Error(data.error);
+    incrementUsage();
+    updateLimitBadge();
     setStep('s2','done','Transkripsiya: '+data.transcribedCount+'/'+selected.length+' ✓');
-    setStep('s3','done','Claude tahlil ✓');
-    setStep('s4','done','Hisobot tayyor ✓');
+    setStep('s3','done','Claude tahlil ✓');setStep('s4','done','Hisobot tayyor ✓');
     setProgress(100);
     data.totalSelected=selected.length;
     renderReelsReport(data);
   }catch(e){showError(e.message);setStep('s1','err','✗ '+e.message);}
   document.getElementById('transcribeBtn').disabled=false;
 }
+
+updateLimitBadge();
 </script>
 </body>
 </html>
