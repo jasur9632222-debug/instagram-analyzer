@@ -4,20 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Instagram Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
-  :root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--accent:#e8ff47;--accent2:#ff6b35;--text:#f0f0f0;--muted:#555;--success:#47ffb2;}
+  :root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--accent:#e8ff47;--accent2:#ff6b35;--text:#f0f0f0;--muted:#555;--success:#47ffb2;--tof:#e8ff47;--mof:#47b2ff;--bof:#ff6b35;}
   *{margin:0;padding:0;box-sizing:border-box;}
   body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding:40px 20px;}
-  .container{max-width:820px;margin:0 auto;}
+  .container{max-width:900px;margin:0 auto;}
   header{margin-bottom:48px;border-bottom:1px solid var(--border);padding-bottom:32px;}
   .label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px;}
   h1{font-size:clamp(32px,6vw,52px);font-weight:800;line-height:1;letter-spacing:-.02em;}
   h1 span{color:var(--accent);}
   .subtitle{margin-top:12px;color:var(--muted);font-size:13px;font-family:'IBM Plex Mono',monospace;}
-  .notice{background:#0d1a00;border:1px solid #e8ff47;border-radius:2px;padding:24px 28px;margin-bottom:24px;}
-  .notice-uz{font-size:15px;line-height:1.8;color:#e8ff47;margin-bottom:8px;}
-  .notice-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7;}
+  .notice{background:#0d1a00;border:1px solid var(--accent);border-radius:2px;padding:24px 28px;margin-bottom:24px;}
+  .notice-uz{font-size:14px;line-height:1.8;color:var(--accent);margin-bottom:6px;}
+  .notice-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
   .card-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;}
   input,textarea{background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:12px 16px;width:100%;transition:border-color .2s;outline:none;resize:none;}
@@ -35,9 +36,9 @@
   .btn:hover{background:#d4eb00;}
   .btn:disabled{background:#222;color:#444;cursor:not-allowed;}
   .btn-sm{font-size:13px;padding:12px 20px;margin-top:12px;}
-  .btn-outline{display:block;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:2px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;padding:14px 32px;cursor:pointer;width:100%;margin-top:12px;text-transform:uppercase;}
+  .btn-outline{display:block;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:2px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:10px 20px;cursor:pointer;text-transform:uppercase;margin-top:12px;width:100%;}
   .btn-outline:hover{background:#0d1a00;}
-  #requestSuccess{display:none;background:#0d1a00;border:1px solid var(--success);border-radius:2px;padding:20px 24px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--success);line-height:1.8;}
+  #requestSuccess{display:none;background:#0d1a00;border:1px solid var(--success);border-radius:2px;padding:20px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--success);line-height:1.8;}
   #reelsPicker{display:none;background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:24px;margin-bottom:16px;}
   #reelsPicker.visible{display:block;animation:fadeIn .3s ease;}
   .picker-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;}
@@ -69,57 +70,117 @@
   #report{display:none;}
   #report.visible{display:block;animation:fadeIn .4s ease;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  .report-top{background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:28px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;}
-  .report-username{font-size:32px;font-weight:800;letter-spacing:-.02em;}
+
+  /* Report styles */
+  .report-hero{background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:32px;margin-bottom:16px;}
+  .report-username{font-size:36px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px;}
   .report-username span{color:var(--accent);}
-  .report-meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:2;text-align:right;}
-  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
-  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:18px;}
-  .stat-val{font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-.02em;}
+  .report-summary{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ccc;line-height:1.8;margin-top:12px;}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:20px;}
+  .stat-val{font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-.02em;}
   .stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.1em;}
-  .section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
-  .section-title{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
-  .section-body{font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.9;color:#ccc;white-space:pre-wrap;}
-  .btn-row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
-  .copy-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px 18px;cursor:pointer;border-radius:2px;transition:all .2s;}
+  .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;margin-top:4px;}
+  .stat-sub.good{color:var(--success);}
+  .stat-sub.bad{color:var(--accent2);}
+
+  /* Funnel section */
+  .funnel-section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
+  .section-title{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+  .funnel-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;}
+  .funnel-chart-wrap{position:relative;width:200px;height:200px;margin:0 auto;}
+  .funnel-legend{display:flex;flex-direction:column;gap:16px;}
+  .funnel-item{display:flex;flex-direction:column;gap:6px;}
+  .funnel-label{display:flex;justify-content:space-between;align-items:center;}
+  .funnel-name{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;}
+  .funnel-pct{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);}
+  .funnel-bar-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+  .funnel-bar{height:100%;border-radius:3px;transition:width 1s ease;}
+  .funnel-ideal{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);}
+  .funnel-verdict{background:#0d1a00;border:1px solid #1a2a00;border-radius:2px;padding:16px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaa;line-height:1.8;}
+
+  /* Missed leads */
+  .missed-leads{background:#1a0800;border:1px solid var(--accent2);border-radius:2px;padding:28px;margin-bottom:16px;text-align:center;}
+  .missed-number{font-size:64px;font-weight:800;color:var(--accent2);letter-spacing:-.02em;line-height:1;}
+  .missed-label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-top:8px;}
+  .missed-exp{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666;margin-top:12px;line-height:1.7;}
+
+  /* Video cards */
+  .videos-section{margin-bottom:16px;}
+  .video-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;margin-bottom:12px;overflow:hidden;transition:border-color .2s;}
+  .video-card:hover{border-color:var(--accent);}
+  .video-card-header{padding:20px 24px;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:start;}
+  .video-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:4px 10px;border-radius:2px;white-space:nowrap;margin-top:2px;}
+  .badge-tof{background:#1a1a00;color:var(--tof);border:1px solid #2a2a00;}
+  .badge-mof{background:#001a2a;color:var(--mof);border:1px solid #002a3a;}
+  .badge-bof{background:#1a0800;color:var(--bof);border:1px solid #2a1000;}
+  .video-info{flex:1;}
+  .video-caption{font-size:13px;color:#ccc;margin-bottom:8px;line-height:1.5;}
+  .video-metrics{display:flex;gap:16px;flex-wrap:wrap;}
+  .metric{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+  .metric span{color:var(--text);}
+  .video-scores{display:flex;flex-direction:column;gap:8px;min-width:140px;}
+  .score-row{display:flex;flex-direction:column;gap:3px;}
+  .score-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;}
+  .score-bar-wrap{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+  .score-bar{height:100%;border-radius:2px;}
+  .score-val{font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:right;}
+  .performance-gap{background:#0a0a0a;border-top:1px solid var(--border);padding:12px 24px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);line-height:1.7;}
+  .expand-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap;margin-top:8px;cursor:pointer;}
+  .video-detail{display:none;border-top:1px solid var(--border);padding:24px;}
+  .video-detail.open{display:block;animation:fadeIn .3s ease;}
+  .detail-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;}
+  .sentence-analysis{display:flex;flex-direction:column;gap:16px;}
+  .sentence-item{background:var(--bg);border-radius:2px;padding:16px;}
+  .sentence-original{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#888;text-decoration:line-through;margin-bottom:8px;}
+  .sentence-problem{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);margin-bottom:8px;}
+  .sentence-fix{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--success);margin-bottom:6px;}
+  .sentence-why{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666;margin-bottom:6px;}
+  .sentence-trigger{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;background:#0a1a0a;border:1px solid #1a3a1a;color:var(--success);border-radius:2px;}
+  .outcome-box{background:#0d1a00;border:1px solid #1a3a00;border-radius:2px;padding:16px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaccaa;line-height:1.8;}
+  .hook-analysis{background:#0a0a1a;border:1px solid #1a1a2a;border-radius:2px;padding:16px;margin-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaaacc;line-height:1.8;}
+  .emotional-trigger{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;background:#1a0a1a;border:1px solid #3a1a3a;color:#cc88ff;border-radius:2px;margin-bottom:12px;}
+
+  /* Recommendations */
+  .recs-section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
+  .rec-item{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--border);}
+  .rec-item:last-child{border-bottom:none;}
+  .rec-num{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:800;color:var(--accent);flex-shrink:0;width:32px;}
+  .rec-text{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ccc;line-height:1.8;}
+
+  .btn-row{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
+  .copy-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px 18px;cursor:pointer;border-radius:2px;}
   .copy-btn:hover{border-color:var(--accent);color:var(--accent);}
   .dl-btn{background:var(--accent);border:none;color:#000;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;padding:10px 18px;cursor:pointer;border-radius:2px;}
-  .dl-btn:hover{background:#d4eb00;}
-  .transcript-section{background:#0d1a00;border:1px solid #2a3a00;border-radius:2px;padding:28px;margin-bottom:16px;}
-  .transcript-item{border-bottom:1px solid #1a2a00;padding:16px 0;}
-  .transcript-item:last-child{border-bottom:none;}
-  .transcript-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;}
-  .transcript-text{font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.8;color:#aaccaa;}
-  .t-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;display:inline-block;margin-top:4px;}
-  .t-badge.ok{background:#0a2010;color:var(--success);border:1px solid #1a4020;}
-  .t-badge.fail{background:#200a00;color:var(--accent2);border:1px solid #401a00;}
+
+  @media(max-width:600px){.funnel-grid{grid-template-columns:1fr;}.video-card-header{grid-template-columns:auto 1fr;}.video-scores{display:none;}}
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <div class="label">// аналитический инструмент v4.0</div>
+    <div class="label">// аналитический инструмент v5.0</div>
     <h1>INSTAGRAM<br><span>ANALYZER</span></h1>
-    <div class="subtitle">→ profil · postlar · reels transkripsiya · TOF/MOF/BOF · hisobot</div>
+    <div class="subtitle">→ reels · transkripsiya · TOF/MOF/BOF · ssenariy tahlili</div>
   </header>
 
   <div class="notice">
-    <div class="notice-uz">🤝 Bu vosita foydalanish uchun to'lov talab qiladi — lekin biz bu yerda pul ishlashni maqsad qilmaganmiz. To'lov faqat xizmat xarajatlarini (server, AI, skraping) qoplash uchun olinadi. Tushunganingiz uchun rahmat!</div>
-    <div class="notice-sub">→ To'lov qilish yoki savol uchun: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a></div>
+    <div class="notice-uz">🤝 Bu vosita foydalanish uchun to'lov talab qiladi — xizmat xarajatlarini qoplash uchun olinadi.</div>
+    <div class="notice-sub">→ Savol uchun: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a></div>
   </div>
 
   <div class="card">
-    <div class="card-title">// tahlil turini tanlang · выбери режим</div>
+    <div class="card-title">// tahlil turini tanlang</div>
     <div class="mode-tabs">
       <button class="mode-tab active" onclick="setMode('posts',this)">📝 Postlar tahlili</button>
       <button class="mode-tab" onclick="setMode('reels',this)">▶ Reels transkripsiya</button>
     </div>
     <div id="modePostsUI">
-      <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov" />
+      <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov"/>
       <button class="btn" id="analyzeBtn" onclick="startAnalysis()">▶ TAHLIL BOSHLASH</button>
     </div>
-    <div id="modeReelsUI" style="display:none;">
-      <input type="text" id="reelsUsername" placeholder="username (@ siz)" />
+    <div id="modeReelsUI" style="display:none">
+      <input type="text" id="reelsUsername" placeholder="username (@ siz)"/>
       <div class="label" style="margin-top:16px;margin-bottom:8px;">// nechta reel yuklash</div>
       <div class="count-select">
         <button class="count-btn" onclick="setCount(5,this)">5</button>
@@ -148,20 +209,16 @@
   </div>
 
   <div class="card">
-    <div class="card-title">// to'lov uchun so'rov · запросить доступ</div>
+    <div class="card-title">// to'lov uchun so'rov</div>
     <div id="requestForm">
       <div class="input-group">
-        <input type="text" id="reqName" placeholder="Ismingiz / Ваше имя" />
-        <input type="text" id="reqTelegram" placeholder="Telegram username (@username)" />
-        <textarea id="reqComment" rows="3" placeholder="Izoh / Комментарий (ixtiyoriy)"></textarea>
+        <input type="text" id="reqName" placeholder="Ismingiz / Ваше имя"/>
+        <input type="text" id="reqTelegram" placeholder="Telegram (@username)"/>
+        <textarea id="reqComment" rows="2" placeholder="Izoh (ixtiyoriy)"></textarea>
       </div>
-      <button class="btn-outline" id="requestBtn" onclick="sendRequest()">📩 SO'ROV YUBORISH</button>
+      <button class="btn-outline" onclick="sendRequest()">📩 SO'ROV YUBORISH</button>
     </div>
-    <div id="requestSuccess">
-      ✓ So'rovingiz yuborildi!<br>
-      @Kodiyusufbay siz bilan tez orada bog'lanadi.<br><br>
-      Telegram: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a>
-    </div>
+    <div id="requestSuccess">✓ So'rovingiz yuborildi! <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a></div>
   </div>
 
   <div id="errorBox"></div>
@@ -173,30 +230,12 @@
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   </div>
 
-  <div id="report">
-    <div class="report-top">
-      <div><div class="label">// hisobot tayyor</div><div class="report-username"><span>@</span><span id="rUsername"></span></div></div>
-      <div class="report-meta" id="rMeta"></div>
-    </div>
-    <div class="stats-grid" id="statsGrid"></div>
-    <div class="section">
-      <div class="section-title">// kontent tahlili · claude ai</div>
-      <div class="section-body" id="rAnalysis"></div>
-      <div class="btn-row">
-        <button class="copy-btn" onclick="copyReport()">⎘ nusxalash</button>
-        <button class="dl-btn" onclick="downloadReport()">↓ hisobot .txt</button>
-        <button class="dl-btn" onclick="downloadTranscripts()">↓ transkripsiyalar .txt</button>
-      </div>
-    </div>
-    <div class="transcript-section" id="transcriptSection" style="display:none">
-      <div class="section-title">// reels transkripsiyalari · whisper ai</div>
-      <div id="transcriptList"></div>
-    </div>
-  </div>
+  <div id="report"></div>
 </div>
 
 <script>
 var currentMode='posts', reelLimit=10, reelsData=[], selectedReels=new Set();
+var funnelChart=null;
 
 function setMode(mode,el){
   currentMode=mode;
@@ -205,6 +244,7 @@ function setMode(mode,el){
   document.getElementById('modePostsUI').style.display=mode==='posts'?'block':'none';
   document.getElementById('modeReelsUI').style.display=mode==='reels'?'block':'none';
   document.getElementById('reelsPicker').className='';
+  document.getElementById('report').innerHTML='';
   document.getElementById('report').className='';
   document.getElementById('errorBox').className='';
 }
@@ -229,26 +269,241 @@ async function sendRequest(){
   var name=document.getElementById('reqName').value.trim();
   var telegram=document.getElementById('reqTelegram').value.trim();
   var comment=document.getElementById('reqComment').value.trim();
-  if(!name||!telegram){alert('Ism va Telegram username kiriting!');return;}
-  var btn=document.getElementById('requestBtn');
-  btn.disabled=true;btn.textContent='Yuborilmoqda...';
-  var message='🔔 YANGI SO\'ROV — Instagram Analyzer\n\n👤 Ism: '+name+'\n📱 Telegram: '+telegram+'\n💬 Izoh: '+(comment||'—')+'\n\n⏰ Vaqt: '+new Date().toLocaleString('ru');
+  if(!name||!telegram){alert('Ism va Telegram kiriting!');return;}
+  var message='🔔 YANGI SO\'ROV\n👤 '+name+'\n📱 '+telegram+'\n💬 '+(comment||'—')+'\n⏰ '+new Date().toLocaleString('ru');
   try{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:message})});}catch(e){}
   document.getElementById('requestForm').style.display='none';
   document.getElementById('requestSuccess').style.display='block';
-  btn.disabled=false;
 }
 
+function scoreColor(score){
+  if(score>=8)return'#47ffb2';
+  if(score>=5)return'#e8ff47';
+  return'#ff6b35';
+}
+
+function funnelColor(type){
+  if(type==='TOF')return'var(--tof)';
+  if(type==='MOF')return'var(--mof)';
+  return'var(--bof)';
+}
+
+function badgeClass(type){
+  if(type==='TOF')return'badge-tof';
+  if(type==='MOF')return'badge-mof';
+  return'badge-bof';
+}
+
+function renderFunnelChart(funnel){
+  if(funnelChart){funnelChart.destroy();}
+  var ctx=document.getElementById('funnelChart');
+  if(!ctx)return;
+  funnelChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:['TOF','MOF','BOF'],
+      datasets:[{data:[funnel.tof,funnel.mof,funnel.bof],backgroundColor:['#e8ff47','#47b2ff','#ff6b35'],borderWidth:0,hoverOffset:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:true,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': '+c.raw+'%';}}}}}
+  });
+}
+
+function renderReelsReport(data){
+  var a=data.analysis;
+  var report=document.getElementById('report');
+  report.className='visible';
+
+  var html='';
+
+  // Hero
+  html+='<div class="report-hero">';
+  html+='<div class="label">// hisobot tayyor · reels tahlili</div>';
+  html+='<div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
+  html+='<div class="report-summary">'+esc(a.executive_summary||'')+'</div>';
+  html+='</div>';
+
+  // Stats
+  html+='<div class="stats-grid">';
+  html+='<div class="stat-card"><div class="stat-val">'+data.totalSelected+'</div><div class="stat-lbl">Reels tahlil</div></div>';
+  html+='<div class="stat-card"><div class="stat-val">'+data.transcribedCount+'</div><div class="stat-lbl">Transkripsiya</div></div>';
+  html+='<div class="stat-card"><div class="stat-val">'+(data.avgLikes||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>';
+  if(a.funnel){
+    html+='<div class="stat-card"><div class="stat-val">'+a.funnel.niche_avg_er+'</div><div class="stat-lbl">Nisha avg ER</div><div class="stat-sub">'+esc(a.funnel.niche||'')+'</div></div>';
+  }
+  html+='</div>';
+
+  // Funnel
+  if(a.funnel){
+    html+='<div class="funnel-section">';
+    html+='<div class="section-title">// TOF / MOF / BOF — kontent voronkasi</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Voronka — bu tomoshabinni notanish odamdan mijozga aylantirish yo\'li. <strong style="color:#ccc">TOF (60%)</strong> — yangi auditoriyani jalb qiladi. <strong style="color:#ccc">MOF (30%)</strong> — ishonch va loyallik yaratadi. <strong style="color:#ccc">BOF (10%)</strong> — sotuvga olib keladi. Noto\'g\'ri nisbat = pul yo\'qotish.</div>';
+    html+='<div class="funnel-grid">';
+    html+='<div class="funnel-chart-wrap"><canvas id="funnelChart" width="200" height="200"></canvas></div>';
+    html+='<div class="funnel-legend">';
+    var items=[{key:'tof',label:'TOF',color:'var(--tof)',ideal:60},{key:'mof',label:'MOF',color:'var(--mof)',ideal:30},{key:'bof',label:'BOF',color:'var(--bof)',ideal:10}];
+    items.forEach(function(item){
+      var val=a.funnel[item.key]||0;
+      var diff=val-item.ideal;
+      var diffStr=diff>0?'+'+diff+'%':diff+'%';
+      var diffColor=Math.abs(diff)<=10?'good':'bad';
+      html+='<div class="funnel-item">';
+      html+='<div class="funnel-label"><span class="funnel-name" style="color:'+item.color+'">'+item.label+'</span><span class="funnel-pct">'+val+'%</span></div>';
+      html+='<div class="funnel-bar-wrap"><div class="funnel-bar" style="width:'+val+'%;background:'+item.color+'"></div></div>';
+      html+='<div class="funnel-ideal">Ideal: '+item.ideal+'% <span class="stat-sub '+diffColor+'">'+diffStr+'</span></div>';
+      html+='</div>';
+    });
+    html+='</div></div>';
+    html+='<div class="funnel-verdict">📊 '+esc(a.funnel.verdict||'')+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
+    html+='</div>';
+  }
+
+  // Missed leads
+  if(a.missed_leads){
+    html+='<div class="missed-leads">';
+    html+='<div class="label">// yo\'qotilgan imkoniyatlar</div>';
+    html+='<div class="missed-number">~'+a.missed_leads.count+'</div>';
+    html+='<div class="missed-label">potentsial so\'rovlar yo\'qotildi</div>';
+    html+='<div class="missed-exp">'+esc(a.missed_leads.explanation||'')+'</div>';
+    html+='</div>';
+  }
+
+  // Video cards
+  if(a.videos&&a.videos.length){
+    html+='<div class="videos-section">';
+    html+='<div class="section-title" style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;">// har bir reel tahlili</div>';
+    a.videos.forEach(function(v,i){
+      var hookColor=scoreColor(v.hook_score||5);
+      var viralColor=scoreColor(v.viral_potential||5);
+      var expectedMore=v.expected_likes>v.actual_likes;
+      html+='<div class="video-card" id="vc-'+i+'">';
+      html+='<div class="video-card-header" onclick="toggleDetail('+i+')">';
+      html+='<div><span class="video-badge '+badgeClass(v.funnel_type||'TOF')+'">'+esc(v.funnel_type||'?')+'</span></div>';
+      html+='<div class="video-info">';
+      var tr=data.transcripts[i];
+      html+='<div class="video-caption">'+esc((tr&&tr.caption||v.summary||'').slice(0,100))+'</div>';
+      html+='<div class="video-metrics">';
+      html+='<div class="metric">❤️ <span>'+((tr&&tr.likes)||v.actual_likes||0).toLocaleString('ru')+'</span></div>';
+      html+='<div class="metric">💬 <span>'+((tr&&tr.comments)||0)+'</span></div>';
+      if(v.expected_likes){html+='<div class="metric">🎯 Kutilgan: <span style="color:'+(expectedMore?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+'</span></div>';}
+      html+='</div>';
+      html+='<div class="expand-btn" id="eb-'+i+'">▼ Batafsil tahlil</div>';
+      html+='</div>';
+      html+='<div class="video-scores">';
+      html+='<div class="score-row"><div class="score-label">Huk kuchi</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+hookColor+'"></div></div><div class="score-val" style="color:'+hookColor+'">'+(v.hook_score||5)+'/10</div></div>';
+      html+='<div class="score-row"><div class="score-label">Viral potensial</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+viralColor+'"></div></div><div class="score-val" style="color:'+viralColor+'">'+(v.viral_potential||5)+'/10</div></div>';
+      html+='</div>';
+      html+='</div>';
+      if(v.performance_gap){
+        html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
+      }
+      // Detail
+      html+='<div class="video-detail" id="vd-'+i+'">';
+      if(v.emotional_trigger){
+        html+='<span class="emotional-trigger">🧠 Trigger: '+esc(v.emotional_trigger)+'</span>';
+      }
+      if(v.hook_analysis){
+        html+='<div class="hook-analysis">🎣 <strong>Huk tahlili:</strong> '+esc(v.hook_analysis)+'</div>';
+      }
+      if(v.deep_analysis&&v.deep_analysis.sentences&&v.deep_analysis.sentences.length){
+        html+='<div class="detail-title">// ssenariy tahlili · jumlama-jumla</div>';
+        html+='<div class="sentence-analysis">';
+        v.deep_analysis.sentences.forEach(function(s){
+          html+='<div class="sentence-item">';
+          html+='<div class="sentence-original">❌ '+esc(s.original||'')+'</div>';
+          html+='<div class="sentence-problem">Muammo: '+esc(s.problem||'')+'</div>';
+          html+='<div class="sentence-fix">✅ '+esc(s.fix||'')+'</div>';
+          html+='<div class="sentence-why">Nima uchun ishlaydi: '+esc(s.why_fix_works||'')+'</div>';
+          if(s.trigger){html+='<span class="sentence-trigger">'+esc(s.trigger)+'</span>';}
+          html+='</div>';
+        });
+        html+='</div>';
+      }
+      if(v.deep_analysis&&v.deep_analysis.outcome){
+        html+='<div class="outcome-box">🚀 <strong>Natija:</strong> '+esc(v.deep_analysis.outcome)+'</div>';
+      }
+      html+='</div>';
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+
+  // Recommendations
+  if(a.top_recommendations&&a.top_recommendations.length){
+    html+='<div class="recs-section">';
+    html+='<div class="section-title">// tavsiyalar</div>';
+    a.top_recommendations.forEach(function(r,i){
+      html+='<div class="rec-item"><div class="rec-num">0'+(i+1)+'</div><div class="rec-text">'+esc(r)+'</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // Buttons
+  html+='<div class="btn-row">';
+  html+='<button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button>';
+  html+='<button class="dl-btn" onclick="downloadTxt()">↓ hisobot .txt</button>';
+  html+='</div>';
+
+  report.innerHTML=html;
+
+  // Draw chart
+  setTimeout(function(){
+    if(a.funnel){renderFunnelChart(a.funnel);}
+  },100);
+
+  window._reportData=data;
+  report.scrollIntoView({behavior:'smooth'});
+}
+
+function toggleDetail(i){
+  var vd=document.getElementById('vd-'+i);
+  var eb=document.getElementById('eb-'+i);
+  if(vd.classList.contains('open')){
+    vd.classList.remove('open');
+    eb.textContent='▼ Batafsil tahlil';
+  }else{
+    vd.classList.add('open');
+    eb.textContent='▲ Yopish';
+  }
+}
+
+function copyTxt(){
+  if(!window._reportData)return;
+  navigator.clipboard.writeText(buildTxt(window._reportData));
+}
+
+function downloadTxt(){
+  if(!window._reportData)return;
+  dlFile(buildTxt(window._reportData),'report_'+(window._reportData.username||'ig')+'.txt');
+}
+
+function buildTxt(d){
+  var t='@'+(d.username||'')+' — Reels Report\n'+'='.repeat(60)+'\n\n';
+  if(d.analysis){
+    t+='EXECUTIVE SUMMARY:\n'+(d.analysis.executive_summary||'')+'\n\n';
+    if(d.analysis.funnel){t+='VORONKA: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';}
+    if(d.analysis.missed_leads){t+='YO\'QOTILGAN: ~'+d.analysis.missed_leads.count+' so\'rov\n\n';}
+    if(d.analysis.videos){
+      d.analysis.videos.forEach(function(v,i){
+        t+='REEL '+(i+1)+' ['+v.funnel_type+']\n';
+        t+='Huk: '+v.hook_score+'/10 | Viral: '+v.viral_potential+'/10\n';
+        t+=v.performance_gap+'\n\n';
+      });
+    }
+  }
+  return t;
+}
+
+// Posts mode
 async function startAnalysis(){
   var username=document.getElementById('username').value.trim().replace('@','');
   if(!username){alert('Username kiriting!');return;}
   document.getElementById('errorBox').className='';
+  document.getElementById('report').innerHTML='';
   document.getElementById('report').className='';
-  document.getElementById('transcriptSection').style.display='none';
   document.getElementById('analyzeBtn').disabled=true;
   document.getElementById('statusBox').className='active';
   setProgress(0);
-  setStep('s1','running','Apify scraper ishga tushirilmoqda...');
+  setStep('s1','running','Apify ishga tushirilmoqda...');
   setStep('s2','pending','Kutilmoqda...');setStep('s3','pending','Kutilmoqda...');setStep('s4','pending','Kutilmoqda...');
   try{
     var startRes=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username})});
@@ -269,23 +524,25 @@ async function startAnalysis(){
       if(pollData.error)throw new Error(pollData.error);
       if(pollData.status==='done'){data=pollData;break;}
     }
-    if(!data)throw new Error('Timeout — qayta urinib ko\'ring');
-    setStep('s2','done','Instagram ma\'lumotlari olindi ✓');
-    setStep('s3','done','Postlar: '+data.postsCount+' ✓');
-    setStep('s4','done','Claude tahlili tayyor ✓');
+    if(!data)throw new Error('Timeout');
+    setStep('s2','done','✓');setStep('s3','done','✓');setStep('s4','done','✓');
     setProgress(100);
-    renderReport(data.username,data.analysis,[
-      {val:typeof data.followers==='number'?data.followers.toLocaleString('ru'):data.followers,lbl:'Followers'},
-      {val:data.avgLikes.toLocaleString('ru'),lbl:"O'rt. layk"},
-      {val:data.avgComments.toLocaleString('ru'),lbl:"O'rt. izoh"},
-      {val:data.erRate+'%',lbl:'ER Rate'},
-    ],'Apify + Claude',data.postsCount+' post',null);
-    window._reportText='@'+data.username+' — Instagram Report\n'+'='.repeat(60)+'\n\nFollowers: '+data.followers+' | ER: '+data.erRate+'%\n\n'+data.analysis;
-    window._transcriptText=null;
+    var report=document.getElementById('report');
+    report.className='visible';
+    report.innerHTML='<div class="report-hero"><div class="label">// postlar tahlili</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div></div>'+
+    '<div class="stats-grid">'+
+    '<div class="stat-card"><div class="stat-val">'+(typeof data.followers==='number'?data.followers.toLocaleString('ru'):data.followers)+'</div><div class="stat-lbl">Followers</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+data.avgLikes.toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+data.erRate+'%</div><div class="stat-lbl">ER Rate</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+data.postsCount+'</div><div class="stat-lbl">Postlar</div></div>'+
+    '</div>'+
+    '<div class="recs-section"><div class="section-title">// tahlil · claude ai</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;line-height:1.9;color:#ccc;white-space:pre-wrap;">'+esc(data.analysis)+'</div></div>';
+    report.scrollIntoView({behavior:'smooth'});
   }catch(e){showError(e.message);}
   document.getElementById('analyzeBtn').disabled=false;
 }
 
+// Reels mode
 async function loadReels(){
   var username=document.getElementById('reelsUsername').value.trim().replace('@','');
   if(!username){alert('Username kiriting!');return;}
@@ -296,9 +553,9 @@ async function loadReels(){
   try{
     var res=await fetch('/api/get-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,limit:reelLimit})});
     var data=await res.json();
-    if(!res.ok||data.error)throw new Error(data.error||'Yuklab bo\'lmadi');
+    if(!res.ok||data.error)throw new Error(data.error||'Xato');
     reelsData=data.reels||[];
-    if(!reelsData.length)throw new Error('Reels topilmadi. Hisob yopiq bo\'lishi mumkin.');
+    if(!reelsData.length)throw new Error('Reels topilmadi');
     renderPicker(reelsData);
     document.getElementById('reelsPicker').className='visible';
     selectAll();
@@ -310,7 +567,7 @@ function renderPicker(reels){
   document.getElementById('reelsGrid').innerHTML=reels.map(function(r,i){
     var cap=esc((r.caption||'(tavsif yo\'q)').slice(0,80));
     var date=r.timestamp?new Date(r.timestamp*1000).toLocaleDateString('ru'):'—';
-    return '<div class="reel-item" id="ri-'+i+'" onclick="toggleReel('+i+')">'+'<div class="reel-check" id="rc-'+i+'">✓</div>'+'<div><div class="reel-caption">'+cap+'</div>'+'<div class="reel-stats">❤️ '+(r.likesCount||0).toLocaleString('ru')+' 💬 '+(r.commentsCount||0).toLocaleString('ru')+'</div></div>'+'<div class="reel-date">'+date+'</div></div>';
+    return '<div class="reel-item" id="ri-'+i+'" onclick="toggleReel('+i+')">'+'<div class="reel-check" id="rc-'+i+'">✓</div>'+'<div><div class="reel-caption">'+cap+'</div>'+'<div class="reel-stats">❤️ '+(r.likesCount||0).toLocaleString('ru')+' 💬 '+(r.commentsCount||0)+'</div></div>'+'<div class="reel-date">'+date+'</div></div>';
   }).join('');
 }
 
@@ -328,6 +585,7 @@ async function startReelsAnalysis(){
   if(!selectedReels.size){alert('Kamida bitta reel tanlang!');return;}
   var selected=Array.from(selectedReels).map(function(i){return reelsData[i];});
   document.getElementById('errorBox').className='';
+  document.getElementById('report').innerHTML='';
   document.getElementById('report').className='';
   document.getElementById('reelsPicker').className='';
   document.getElementById('transcribeBtn').disabled=true;
@@ -336,55 +594,22 @@ async function startReelsAnalysis(){
   setStep('s1','running',selected.length+' ta reel transkripsiyaga yuborilmoqda...');
   setStep('s2','pending','Kutilmoqda...');setStep('s3','pending','Kutilmoqda...');setStep('s4','pending','Kutilmoqda...');
   try{
+    setProgress(10);
     var res=await fetch('/api/transcribe-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,reels:selected})});
     setStep('s1','done','So\'rov yuborildi ✓');
-    setStep('s2','running','Audio yuklab, Whisper bilan transkripsiya qilinmoqda...');
-    setProgress(20);
+    setStep('s2','running','Transkripsiya va tahlil...');
+    setProgress(50);
     var data=await res.json();
     if(!res.ok||data.error)throw new Error(data.error);
     setStep('s2','done','Transkripsiya: '+data.transcribedCount+'/'+selected.length+' ✓');
-    setStep('s3','running','Claude tahlil qilmoqda...');
-    setProgress(75);
-    await new Promise(function(r){setTimeout(r,400);});
-    setStep('s3','done','Tahlil tayyor ✓');
+    setStep('s3','done','Claude tahlil ✓');
     setStep('s4','done','Hisobot tayyor ✓');
     setProgress(100);
-    renderReport(data.username,data.analysis,[
-      {val:data.followers||'—',lbl:'Followers'},
-      {val:data.avgLikes?(+data.avgLikes).toLocaleString('ru'):'—',lbl:"O'rt. layk"},
-      {val:data.transcribedCount+' / '+data.totalSelected,lbl:'Transkripsiya'},
-    ],'Apify + Whisper + Claude',data.totalSelected+' reel',data.transcripts);
-    window._username=data.username;
-    window._reportText='@'+data.username+' — Reels Report\n'+'='.repeat(60)+'\nReels: '+data.totalSelected+' | Transkripsiya: '+data.transcribedCount+'\n\n'+data.analysis;
-    window._transcriptText=buildTxt(data);
+    data.totalSelected=selected.length;
+    renderReelsReport(data);
   }catch(e){showError(e.message);setStep('s1','err','✗ '+e.message);}
   document.getElementById('transcribeBtn').disabled=false;
 }
-
-function renderReport(username,analysis,stats,powered,extra,transcripts){
-  document.getElementById('rUsername').textContent=username;
-  document.getElementById('rMeta').innerHTML='Sana: '+new Date().toLocaleDateString('ru')+'<br>'+extra+'<br>'+powered;
-  document.getElementById('statsGrid').innerHTML=stats.map(function(s){return '<div class="stat-card"><div class="stat-val">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';}).join('');
-  document.getElementById('rAnalysis').textContent=analysis||'—';
-  if(transcripts&&transcripts.length){
-    document.getElementById('transcriptList').innerHTML=transcripts.map(function(t,i){
-      var ok=t.transcript&&!t.transcript.startsWith('(');
-      return '<div class="transcript-item"><div class="transcript-meta">REEL '+(i+1)+' · '+t.date+' · ❤️ '+(t.likes||0)+' 💬 '+(t.comments||0)+'</div><div class="transcript-meta" style="color:#445">'+esc(t.caption||'')+'</div><span class="t-badge '+(ok?'ok':'fail')+'">'+(ok?'✓ transkripsiya qilindi':'✗ muvaffaqiyatsiz')+'</span><div class="transcript-text">'+esc(t.transcript||'(mavjud emas)')+'</div></div>';
-    }).join('');
-    document.getElementById('transcriptSection').style.display='block';
-  }
-  document.getElementById('report').className='visible';
-  document.getElementById('report').scrollIntoView({behavior:'smooth'});
-}
-
-function buildTxt(d){
-  var t='TRANSKRIPSIYALAR @'+(d.username||'')+'\n'+'='.repeat(60)+'\n';
-  (d.transcripts||[]).forEach(function(r,i){t+='\n--- REEL '+(i+1)+' ---\n'+(r.caption||'')+'\n\n'+(r.transcript||'')+'\n';});
-  return t;
-}
-function copyReport(){navigator.clipboard.writeText(window._reportText||'');}
-function downloadReport(){dlFile(window._reportText||'','report_'+(window._username||'ig')+'.txt');}
-function downloadTranscripts(){if(!window._transcriptText){alert('Transkripsiyalar topilmadi');return;}dlFile(window._transcriptText,'transcripts_'+(window._username||'ig')+'.txt');}
 </script>
 </body>
 </html>
