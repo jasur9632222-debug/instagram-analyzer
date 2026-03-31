@@ -53,76 +53,75 @@ export default async function handler(req, res) {
     }));
 
     const transcribedCount = transcriptResults.filter(r => r.transcript !== '(mavjud emas)').length;
+    const avgLikes = Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length);
 
     const reelsForClaude = transcriptResults.map((r, i) =>
       'REEL ' + (i+1) + ':\n' +
       'Caption: ' + r.caption + '\n' +
-      'Lайки: ' + r.likes + ' | Комменты: ' + r.comments + '\n' +
-      'Транскрипция: ' + r.transcript
+      'Layklar: ' + r.likes + ' | Izohlar: ' + r.comments + '\n' +
+      'Transkripsiya: ' + r.transcript
     ).join('\n\n---\n\n');
 
-    const avgLikes = Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length);
+    const prompt = `Siz — Instagram kontent strategiyasi bo'yicha 10+ yillik tajribaga ega Senior Content Strategist siz.
 
-    const prompt = `Ты — Senior Content Strategist с глубокой экспертизой в воронках контента и сценарном анализе.
+Hisob: @${username}
+Tahlil qilingan reels: ${reels.length}
+Transkripsiya qilingan: ${transcribedCount}
+O'rtacha layk: ${avgLikes}
 
-Аккаунт: @${username}
-Проанализировано reels: ${reels.length}
-Транскрибировано: ${transcribedCount}
-Средние лайки: ${avgLikes}
-
-ТРАНСКРИПЦИИ:
+TRANSKRIPSIYALAR:
 ${reelsForClaude}
 
-Верни ТОЛЬКО валидный JSON без markdown, без backticks, без пояснений. Только JSON:
+FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
 
 {
   "funnel": {
-    "tof": <число % от 0 до 100>,
-    "mof": <число % от 0 до 100>,
-    "bof": <число % от 0 до 100>,
+    "tof": <0 dan 100 gacha son>,
+    "mof": <0 dan 100 gacha son>,
+    "bof": <0 dan 100 gacha son>,
     "ideal": {"tof": 60, "mof": 30, "bof": 10},
-    "verdict": "<2-3 предложения о балансе воронки>",
-    "niche": "<определи нишу автора>",
-    "niche_avg_er": "<средний ER в этой нише, например 2-4%>"
+    "verdict": "<voronka balansi haqida 2-3 gap O'zbek tilida>",
+    "niche": "<muallifning nishasi O'zbek tilida>",
+    "niche_avg_er": "<bu nishadagi o'rtacha ER, masalan 2-4%>"
   },
   "missed_leads": {
-    "count": <примерное число упущенных заявок>,
-    "explanation": "<как посчитал>"
+    "count": <taxminiy yo'qotilgan so'rovlar soni>,
+    "explanation": "<qanday hisoblanganligi O'zbek tilida>"
   },
   "videos": [
     {
       "index": 1,
       "funnel_type": "<TOF|MOF|BOF>",
-      "hook_score": <число 1-10>,
-      "hook_analysis": "<анализ первых 3 секунд>",
-      "emotional_trigger": "<какую эмоцию использует: страх/надежда/любопытство/гордость/стыд/другое>",
-      "actual_likes": <число>,
-      "expected_likes": <число — сколько должно было набрать>,
-      "performance_gap": "<почему не набрало — 2-3 причины>",
-      "viral_potential": <число 1-10>,
-      "summary": "<краткий вывод по видео>",
+      "hook_score": <1 dan 10 gacha son>,
+      "hook_analysis": "<dastlabki 3 soniya tahlili O'zbek tilida>",
+      "emotional_trigger": "<qaysi hissiyotni ishlatadi: qo'rquv/umid/qiziqish/g'urur/uyat/boshqa — O'zbek tilida>",
+      "actual_likes": <son>,
+      "expected_likes": <nechta bo'lishi kerak edi>,
+      "performance_gap": "<nima uchun ko'p to'planmadi — 2-3 sabab O'zbek tilida>",
+      "viral_potential": <1 dan 10 gacha son>,
+      "summary": "<video haqida qisqacha xulosa O'zbek tilida>",
       "deep_analysis": {
         "sentences": [
           {
-            "original": "<оригинальная фраза из транскрипции>",
-            "problem": "<почему не сработало>",
-            "fix": "<исправленный вариант>",
-            "why_fix_works": "<почему новый вариант лучше>",
-            "trigger": "<эмоциональный триггер в новом варианте>"
+            "original": "<transkripsiyadan original ibora>",
+            "problem": "<nima uchun ishlamadi O'zbek tilida>",
+            "fix": "<tuzatilgan variant O'zbek tilida>",
+            "why_fix_works": "<nima uchun yangi variant yaxshiroq O'zbek tilida>",
+            "trigger": "<yangi variantdagi hissiy trigger O'zbek tilida>"
           }
         ],
-        "outcome": "<что произойдёт если применить все исправления — рост просмотров, подписчиков, сохранений>"
+        "outcome": "<barcha tuzatishlar qo'llanilsa nima bo'ladi — ko'rishlar, obunachlar, saqlashlar O'zbek tilida>"
       }
     }
   ],
-  "executive_summary": "<3-4 предложения об аккаунте в целом>",
-  "funnel_recommendations": "<что нужно изменить в соотношении TOF/MOF/BOF>",
+  "executive_summary": "<umuman hisob haqida 3-4 gap O'zbek tilida>",
+  "funnel_recommendations": "<TOF/MOF/BOF nisbatini o'zgartirish bo'yicha tavsiya O'zbek tilida>",
   "top_recommendations": [
-    "<рекомендация 1>",
-    "<рекомендация 2>",
-    "<рекомендация 3>",
-    "<рекомендация 4>",
-    "<рекомендация 5>"
+    "<1-tavsiya O'zbek tilida>",
+    "<2-tavsiya O'zbek tilida>",
+    "<3-tavsiya O'zbek tilida>",
+    "<4-tavsiya O'zbek tilida>",
+    "<5-tavsiya O'zbek tilida>"
   ]
 }`;
 
