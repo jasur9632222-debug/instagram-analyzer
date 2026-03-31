@@ -15,7 +15,6 @@ export default async function handler(req, res) {
       const videoUrl = reel.videoUrl;
       if (!videoUrl) return null;
 
-      // Скачиваем видео напрямую по URL от Apify
       const videoRes = await fetch(videoUrl);
       if (!videoRes.ok) return null;
       const videoBuffer = await videoRes.arrayBuffer();
@@ -23,8 +22,20 @@ export default async function handler(req, res) {
 
       const uint8Array = new Uint8Array(videoBuffer);
       const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
-      const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="language"\r\n\r\nuz\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
+
+      const beforeFile = '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="language"\r\n\r\nuz\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="prompt"\r\n\r\nShu audio O\'zbek tilida. Iltimos O\'zbek tilida transkripsiya qiling. O\'zbek so\'zlari va iboralarini to\'g\'ri yozing.\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
+
       const afterFile = '\r\n--' + boundary + '--\r\n';
+
       const beforeBytes = new TextEncoder().encode(beforeFile);
       const afterBytes = new TextEncoder().encode(afterFile);
       const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);
@@ -84,7 +95,7 @@ export default async function handler(req, res) {
         max_tokens: 3000,
         messages: [{
           role: 'user',
-          content: 'Ты — Senior Content Strategist.\nАккаунт: @' + username + '\nТранскрибировано: ' + transcribedCount + ' из ' + reels.length + ' reels\n\nТРАНСКРИПЦИИ REELS:\n' + transcriptText + '\n\nСоставь профессиональный отчёт на русском:\n\n## 📊 EXECUTIVE SUMMARY\nКто автор, о чём говорит, главный инсайт из транскрипций.\n\n## 🎙 АНАЛИЗ РЕЧИ И ПОДАЧИ\n- Стиль речи, словарный запас, темп\n- Повторяющиеся фразы и триггеры\n- Как начинает видео (хук)\n- Как заканчивает (CTA)\n\n## 🎯 КОНТЕНТ-МИКС И ВОРОНКА TOF/MOF/BOF\nРаспредели каждый рилс по воронке и дай % соотношение.\n\n## 🔥 САМЫЕ СИЛЬНЫЕ МОМЕНТЫ\nКакие фразы и темы работают лучше всего.\n\n## ⚠️ ЗОНЫ РОСТА\nЧто можно улучшить в подаче и контенте.\n\n## 💡 РЕКОМЕНДАЦИИ\n5 конкретных советов основанных на транскрипциях.'
+          content: 'Ты — Senior Content Strategist.\nАккаунт: @' + username + '\nТранскрибировано: ' + transcribedCount + ' из ' + reels.length + ' reels\n\nТРАНСКРИПЦИИ REELS (на узбекском):\n' + transcriptText + '\n\nСоставь профессиональный отчёт на русском:\n\n## 📊 EXECUTIVE SUMMARY\nКто автор, о чём говорит, главный инсайт из транскрипций.\n\n## 🎙 АНАЛИЗ РЕЧИ И ПОДАЧИ\n- Стиль речи, словарный запас, темп\n- Повторяющиеся фразы и триггеры\n- Как начинает видео (хук)\n- Как заканчивает (CTA)\n\n## 🎯 КОНТЕНТ-МИКС И ВОРОНКА TOF/MOF/BOF\nРаспредели каждый рилс по воронке и дай % соотношение.\n\n## 🔥 САМЫЕ СИЛЬНЫЕ МОМЕНТЫ\nКакие фразы и темы работают лучше всего.\n\n## ⚠️ ЗОНЫ РОСТА\nЧто можно улучшить в подаче и контенте.\n\n## 💡 РЕКОМЕНДАЦИИ\n5 конкретных советов основанных на транскрипциях.'
         }]
       })
     });
