@@ -6,7 +6,7 @@
 <title>Instagram Analyzer</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
-  :root { --bg:#0a0a0a; --surface:#111; --border:#1e1e1e; --accent:#e8ff47; --accent2:#ff6b35; --text:#f0f0f0; --muted:#555; --success:#47ffb2; }
+  :root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--accent:#e8ff47;--accent2:#ff6b35;--text:#f0f0f0;--muted:#555;--success:#47ffb2;}
   *{margin:0;padding:0;box-sizing:border-box;}
   body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding:40px 20px;}
   .container{max-width:820px;margin:0 auto;}
@@ -24,19 +24,41 @@
   input:focus,textarea:focus{border-color:var(--accent);}
   input::placeholder,textarea::placeholder{color:#333;}
   .input-group{display:flex;flex-direction:column;gap:12px;}
+  .mode-tabs{display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:2px;overflow:hidden;}
+  .mode-tab{flex:1;background:transparent;border:none;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:12px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .2s;border-right:1px solid var(--border);}
+  .mode-tab:last-child{border-right:none;}
+  .mode-tab.active{background:var(--accent);color:#000;font-weight:700;}
+  .count-select{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .count-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px 16px;cursor:pointer;border-radius:2px;transition:all .2s;}
+  .count-btn.active{border-color:var(--accent);color:var(--accent);background:#111a00;}
   .btn{display:block;background:var(--accent);color:#000;border:none;border-radius:2px;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;padding:18px 32px;cursor:pointer;width:100%;margin-top:16px;text-transform:uppercase;letter-spacing:.05em;}
   .btn:hover{background:#d4eb00;}
   .btn:disabled{background:#222;color:#444;cursor:not-allowed;}
+  .btn-sm{font-size:13px;padding:12px 20px;margin-top:12px;}
   .btn-outline{display:block;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:2px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;padding:14px 32px;cursor:pointer;width:100%;margin-top:12px;text-transform:uppercase;}
   .btn-outline:hover{background:#0d1a00;}
-  #requestForm{display:block;}
   #requestSuccess{display:none;background:#0d1a00;border:1px solid var(--success);border-radius:2px;padding:20px 24px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--success);line-height:1.8;}
+  #reelsPicker{display:none;background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:24px;margin-bottom:16px;}
+  #reelsPicker.visible{display:block;animation:fadeIn .3s ease;}
+  .picker-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;}
+  .picker-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;}
+  .picker-actions{display:flex;gap:8px;}
+  .pab{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:6px 12px;cursor:pointer;border-radius:2px;}
+  .pab:hover{border-color:var(--accent);color:var(--accent);}
+  .reels-grid{display:grid;gap:8px;max-height:380px;overflow-y:auto;}
+  .reel-item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--border);padding:12px 16px;border-radius:2px;cursor:pointer;transition:all .2s;}
+  .reel-item.selected{border-color:var(--accent);background:#111a00;}
+  .reel-check{width:16px;height:16px;border:1.5px solid var(--muted);border-radius:2px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;}
+  .reel-item.selected .reel-check{background:var(--accent);border-color:var(--accent);color:#000;}
+  .reel-caption{font-size:12px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .reel-stats{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px;}
+  .reel-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap;}
+  .picker-footer{margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+  .sel-count{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);}
   #statusBox{display:none;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:24px 28px;margin-bottom:16px;}
   #statusBox.active{display:block;}
   .step{display:flex;align-items:center;gap:10px;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
-  .step.done{color:var(--success);}
-  .step.running{color:var(--accent);}
-  .step.err{color:var(--accent2);}
+  .step.done{color:var(--success);}.step.running{color:var(--accent);}.step.err{color:var(--accent2);}
   .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
   .spin{width:12px;height:12px;border:1.5px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
   @keyframes spin{to{transform:rotate(360deg);}}
@@ -68,14 +90,17 @@
   .transcript-item:last-child{border-bottom:none;}
   .transcript-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;}
   .transcript-text{font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.8;color:#aaccaa;}
+  .t-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;display:inline-block;margin-top:4px;}
+  .t-badge.ok{background:#0a2010;color:var(--success);border:1px solid #1a4020;}
+  .t-badge.fail{background:#200a00;color:var(--accent2);border:1px solid #401a00;}
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <div class="label">// аналитический инструмент v3.0</div>
+    <div class="label">// аналитический инструмент v4.0</div>
     <h1>INSTAGRAM<br><span>ANALYZER</span></h1>
-    <div class="subtitle">→ профиль · посты · транскрипции · TOF/MOF/BOF · отчёт</div>
+    <div class="subtitle">→ profil · postlar · reels transkripsiya · TOF/MOF/BOF · hisobot</div>
   </header>
 
   <div class="notice">
@@ -84,9 +109,42 @@
   </div>
 
   <div class="card">
-    <div class="card-title">// username kiriting</div>
-    <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov" />
-    <button class="btn" id="analyzeBtn">&#9654; TAHLIL BOSHLASH</button>
+    <div class="card-title">// tahlil turini tanlang · выбери режим</div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="setMode('posts',this)">📝 Postlar tahlili</button>
+      <button class="mode-tab" onclick="setMode('reels',this)">▶ Reels transkripsiya</button>
+    </div>
+    <div id="modePostsUI">
+      <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov" />
+      <button class="btn" id="analyzeBtn" onclick="startAnalysis()">▶ TAHLIL BOSHLASH</button>
+    </div>
+    <div id="modeReelsUI" style="display:none;">
+      <input type="text" id="reelsUsername" placeholder="username (@ siz)" />
+      <div class="label" style="margin-top:16px;margin-bottom:8px;">// nechta reel yuklash</div>
+      <div class="count-select">
+        <button class="count-btn" onclick="setCount(5,this)">5</button>
+        <button class="count-btn active" onclick="setCount(10,this)">10</button>
+        <button class="count-btn" onclick="setCount(20,this)">20</button>
+        <button class="count-btn" onclick="setCount(30,this)">30</button>
+      </div>
+      <button class="btn btn-sm" id="loadReelsBtn" onclick="loadReels()">▶ REELSLARNI YUKLASH</button>
+    </div>
+  </div>
+
+  <div id="reelsPicker">
+    <div class="picker-header">
+      <div class="picker-title">// tahlil uchun reelslarni tanlang</div>
+      <div class="picker-actions">
+        <button class="pab" onclick="selectAll()">Barchasi</button>
+        <button class="pab" onclick="selectTop(5)">Top 5</button>
+        <button class="pab" onclick="selectNone()">Tozalash</button>
+      </div>
+    </div>
+    <div class="reels-grid" id="reelsGrid"></div>
+    <div class="picker-footer">
+      <div class="sel-count" id="selectedCount">Tanlandi: 0</div>
+      <button class="btn btn-sm" id="transcribeBtn" onclick="startReelsAnalysis()">▶ TRANSKRIPSIYA + TAHLIL</button>
+    </div>
   </div>
 
   <div class="card">
@@ -97,7 +155,7 @@
         <input type="text" id="reqTelegram" placeholder="Telegram username (@username)" />
         <textarea id="reqComment" rows="3" placeholder="Izoh / Комментарий (ixtiyoriy)"></textarea>
       </div>
-      <button class="btn-outline" id="requestBtn">📩 SO'ROV YUBORISH</button>
+      <button class="btn-outline" id="requestBtn" onclick="sendRequest()">📩 SO'ROV YUBORISH</button>
     </div>
     <div id="requestSuccess">
       ✓ So'rovingiz yuborildi!<br>
@@ -107,7 +165,6 @@
   </div>
 
   <div id="errorBox"></div>
-
   <div id="statusBox">
     <div class="step" id="s1"><div class="dot"></div><span>Kutilmoqda...</span></div>
     <div class="step" id="s2"><div class="dot"></div><span>Kutilmoqda...</span></div>
@@ -118,10 +175,7 @@
 
   <div id="report">
     <div class="report-top">
-      <div>
-        <div class="label">// hisobot tayyor</div>
-        <div class="report-username"><span>@</span><span id="rUsername"></span></div>
-      </div>
+      <div><div class="label">// hisobot tayyor</div><div class="report-username"><span>@</span><span id="rUsername"></span></div></div>
       <div class="report-meta" id="rMeta"></div>
     </div>
     <div class="stats-grid" id="statsGrid"></div>
@@ -129,191 +183,208 @@
       <div class="section-title">// kontent tahlili · claude ai</div>
       <div class="section-body" id="rAnalysis"></div>
       <div class="btn-row">
-        <button class="copy-btn" id="copyBtn">⎘ копировать отчёт</button>
-        <button class="dl-btn" id="dlReportBtn">↓ скачать отчёт .txt</button>
-        <button class="dl-btn" id="dlTranscriptBtn">↓ скачать транскрипции .txt</button>
+        <button class="copy-btn" onclick="copyReport()">⎘ nusxalash</button>
+        <button class="dl-btn" onclick="downloadReport()">↓ hisobot .txt</button>
+        <button class="dl-btn" onclick="downloadTranscripts()">↓ transkripsiyalar .txt</button>
       </div>
     </div>
     <div class="transcript-section" id="transcriptSection" style="display:none">
-      <div class="section-title">// video transkripsiyalari</div>
+      <div class="section-title">// reels transkripsiyalari · whisper ai</div>
       <div id="transcriptList"></div>
     </div>
   </div>
 </div>
 
 <script>
-document.getElementById('analyzeBtn').addEventListener('click', startAnalysis);
-document.getElementById('requestBtn').addEventListener('click', sendRequest);
-document.getElementById('copyBtn').addEventListener('click', copyReport);
-document.getElementById('dlReportBtn').addEventListener('click', downloadReport);
-document.getElementById('dlTranscriptBtn').addEventListener('click', downloadTranscripts);
+var currentMode='posts', reelLimit=10, reelsData=[], selectedReels=new Set();
 
-async function sendRequest() {
-  var name = document.getElementById('reqName').value.trim();
-  var telegram = document.getElementById('reqTelegram').value.trim();
-  var comment = document.getElementById('reqComment').value.trim();
-  if (!name || !telegram) { alert('Ism va Telegram username kiriting!'); return; }
-  var btn = document.getElementById('requestBtn');
-  btn.disabled = true;
-  btn.textContent = 'Yuborilmoqda...';
-  var message = '🔔 YANGI SO\'ROV — Instagram Analyzer\n\n👤 Ism: ' + name + '\n📱 Telegram: ' + telegram + '\n💬 Izoh: ' + (comment || '—') + '\n\n⏰ Vaqt: ' + new Date().toLocaleString('ru');
-  try {
-    await fetch('/api/notify', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ message: message })
-    });
-  } catch(e) {}
-  document.getElementById('requestForm').style.display = 'none';
-  document.getElementById('requestSuccess').style.display = 'block';
-  btn.disabled = false;
+function setMode(mode,el){
+  currentMode=mode;
+  document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('modePostsUI').style.display=mode==='posts'?'block':'none';
+  document.getElementById('modeReelsUI').style.display=mode==='reels'?'block':'none';
+  document.getElementById('reelsPicker').className='';
+  document.getElementById('report').className='';
+  document.getElementById('errorBox').className='';
 }
 
-function setStep(id, state, text) {
-  var el = document.getElementById(id);
-  el.className = 'step ' + state;
-  el.innerHTML = (state === 'running' ? '<div class="spin"></div>' : '<div class="dot"></div>') + '<span>' + text + '</span>';
+function setCount(n,el){
+  reelLimit=n;
+  document.querySelectorAll('.count-select .count-btn').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');
 }
 
-function setProgress(pct) {
-  document.getElementById('progressFill').style.width = pct + '%';
+function setStep(id,state,text){
+  var el=document.getElementById(id);
+  el.className='step '+state;
+  el.innerHTML=(state==='running'?'<div class="spin"></div>':'<div class="dot"></div>')+'<span>'+text+'</span>';
+}
+function setProgress(pct){document.getElementById('progressFill').style.width=pct+'%';}
+function showError(msg){var eb=document.getElementById('errorBox');eb.innerHTML='✗ XATO: '+msg;eb.className='visible';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dlFile(text,name){var b=new Blob([text],{type:'text/plain;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+
+async function sendRequest(){
+  var name=document.getElementById('reqName').value.trim();
+  var telegram=document.getElementById('reqTelegram').value.trim();
+  var comment=document.getElementById('reqComment').value.trim();
+  if(!name||!telegram){alert('Ism va Telegram username kiriting!');return;}
+  var btn=document.getElementById('requestBtn');
+  btn.disabled=true;btn.textContent='Yuborilmoqda...';
+  var message='🔔 YANGI SO\'ROV — Instagram Analyzer\n\n👤 Ism: '+name+'\n📱 Telegram: '+telegram+'\n💬 Izoh: '+(comment||'—')+'\n\n⏰ Vaqt: '+new Date().toLocaleString('ru');
+  try{await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:message})});}catch(e){}
+  document.getElementById('requestForm').style.display='none';
+  document.getElementById('requestSuccess').style.display='block';
+  btn.disabled=false;
 }
 
-function showError(msg) {
-  var eb = document.getElementById('errorBox');
-  eb.innerHTML = '✗ XATO: ' + msg;
-  eb.className = 'visible';
-  ['s1','s2','s3','s4'].forEach(function(id){
-    if(document.getElementById(id).classList.contains('running'))
-      setStep(id, 'err', '✗ ' + msg);
-  });
-}
-
-async function startAnalysis() {
-  var username = document.getElementById('username').value.trim().replace('@','');
-  if (!username) { alert('Username kiriting!'); return; }
-  document.getElementById('errorBox').className = '';
-  document.getElementById('report').className = '';
-  document.getElementById('transcriptSection').style.display = 'none';
-  document.getElementById('analyzeBtn').disabled = true;
-  document.getElementById('statusBox').className = 'active';
+async function startAnalysis(){
+  var username=document.getElementById('username').value.trim().replace('@','');
+  if(!username){alert('Username kiriting!');return;}
+  document.getElementById('errorBox').className='';
+  document.getElementById('report').className='';
+  document.getElementById('transcriptSection').style.display='none';
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('statusBox').className='active';
   setProgress(0);
-  setStep('s1', 'running', 'Apify scraper ishga tushirilmoqda...');
-  setStep('s2', 'pending', 'Kutilmoqda...');
-  setStep('s3', 'pending', 'Kutilmoqda...');
-  setStep('s4', 'pending', 'Kutilmoqda...');
-
-  try {
-    var startRes = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: username})
-    });
-    var startData = await startRes.json();
-    if (!startRes.ok || startData.error) throw new Error(startData.error);
-    var runId = startData.runId;
-    var datasetId = startData.datasetId;
-    setStep('s1', 'done', 'Apify ishga tushdi ✓');
-    setStep('s2', 'running', 'Instagram scraping + video tahlil...');
+  setStep('s1','running','Apify scraper ishga tushirilmoqda...');
+  setStep('s2','pending','Kutilmoqda...');setStep('s3','pending','Kutilmoqda...');setStep('s4','pending','Kutilmoqda...');
+  try{
+    var startRes=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username})});
+    var startData=await startRes.json();
+    if(!startRes.ok||startData.error)throw new Error(startData.error);
+    var runId=startData.runId,datasetId=startData.datasetId;
+    setStep('s1','done','Apify ishga tushdi ✓');
+    setStep('s2','running','Instagram scraping...');
     setProgress(10);
-
-    var attempts = 0;
-    var data = null;
-    while (attempts < 60) {
-      await new Promise(function(r){ setTimeout(r, 5000); });
+    var attempts=0,data=null;
+    while(attempts<60){
+      await new Promise(function(r){setTimeout(r,5000);});
       attempts++;
-      setProgress(10 + Math.min(attempts / 60 * 70, 70));
-      setStep('s2', 'running', 'Ishlanmoqda... ' + (attempts * 5) + 's');
-      var pollRes = await fetch('/api/report', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({runId: runId, datasetId: datasetId, username: username})
-      });
-      var pollData = await pollRes.json();
-      if (pollData.error) throw new Error(pollData.error);
-      if (pollData.status === 'done') { data = pollData; break; }
+      setProgress(10+Math.min(attempts/60*70,70));
+      setStep('s2','running','Ishlanmoqda... '+(attempts*5)+'s');
+      var pollRes=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:runId,datasetId:datasetId,username:username})});
+      var pollData=await pollRes.json();
+      if(pollData.error)throw new Error(pollData.error);
+      if(pollData.status==='done'){data=pollData;break;}
     }
-
-    if (!data) throw new Error('Timeout — qayta urinib ko\'ring');
-
-    setStep('s2', 'done', 'Instagram ma\'lumotlari olindi ✓');
-    setStep('s3', 'done', 'Postlar: ' + data.postsCount + ' ✓');
-    setStep('s4', 'done', 'Claude tahlili tayyor ✓');
+    if(!data)throw new Error('Timeout — qayta urinib ko\'ring');
+    setStep('s2','done','Instagram ma\'lumotlari olindi ✓');
+    setStep('s3','done','Postlar: '+data.postsCount+' ✓');
+    setStep('s4','done','Claude tahlili tayyor ✓');
     setProgress(100);
+    renderReport(data.username,data.analysis,[
+      {val:typeof data.followers==='number'?data.followers.toLocaleString('ru'):data.followers,lbl:'Followers'},
+      {val:data.avgLikes.toLocaleString('ru'),lbl:"O'rt. layk"},
+      {val:data.avgComments.toLocaleString('ru'),lbl:"O'rt. izoh"},
+      {val:data.erRate+'%',lbl:'ER Rate'},
+    ],'Apify + Claude',data.postsCount+' post',null);
+    window._reportText='@'+data.username+' — Instagram Report\n'+'='.repeat(60)+'\n\nFollowers: '+data.followers+' | ER: '+data.erRate+'%\n\n'+data.analysis;
+    window._transcriptText=null;
+  }catch(e){showError(e.message);}
+  document.getElementById('analyzeBtn').disabled=false;
+}
 
-    document.getElementById('rUsername').textContent = data.username;
-    document.getElementById('rMeta').innerHTML =
-      'Sana: ' + new Date().toLocaleDateString('ru') + '<br>' +
-      'Postlar: ' + data.postsCount + '<br>' +
-      'Powered by Apify + Claude';
+async function loadReels(){
+  var username=document.getElementById('reelsUsername').value.trim().replace('@','');
+  if(!username){alert('Username kiriting!');return;}
+  document.getElementById('errorBox').className='';
+  document.getElementById('reelsPicker').className='';
+  var btn=document.getElementById('loadReelsBtn');
+  btn.disabled=true;btn.textContent='Yuklanmoqda...';
+  try{
+    var res=await fetch('/api/get-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,limit:reelLimit})});
+    var data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error||'Yuklab bo\'lmadi');
+    reelsData=data.reels||[];
+    if(!reelsData.length)throw new Error('Reels topilmadi. Hisob yopiq bo\'lishi mumkin.');
+    renderPicker(reelsData);
+    document.getElementById('reelsPicker').className='visible';
+    selectAll();
+  }catch(e){showError(e.message);}
+  btn.disabled=false;btn.textContent='▶ REELSLARNI YUKLASH';
+}
 
-    document.getElementById('statsGrid').innerHTML = [
-      {val: typeof data.followers === 'number' ? data.followers.toLocaleString('ru') : data.followers, lbl: 'Followers'},
-      {val: data.avgLikes.toLocaleString('ru'), lbl: "O'rt. layk"},
-      {val: data.avgComments.toLocaleString('ru'), lbl: "O'rt. izoh"},
-      {val: data.erRate + '%', lbl: 'ER Rate'},
-      {val: data.videoCount + ' video', lbl: 'Videolar'},
-    ].map(function(s){
-      return '<div class="stat-card"><div class="stat-val">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';
+function renderPicker(reels){
+  document.getElementById('reelsGrid').innerHTML=reels.map(function(r,i){
+    var cap=esc((r.caption||'(tavsif yo\'q)').slice(0,80));
+    var date=r.timestamp?new Date(r.timestamp*1000).toLocaleDateString('ru'):'—';
+    return '<div class="reel-item" id="ri-'+i+'" onclick="toggleReel('+i+')">'+'<div class="reel-check" id="rc-'+i+'">✓</div>'+'<div><div class="reel-caption">'+cap+'</div>'+'<div class="reel-stats">❤️ '+(r.likesCount||0).toLocaleString('ru')+' 💬 '+(r.commentsCount||0).toLocaleString('ru')+'</div></div>'+'<div class="reel-date">'+date+'</div></div>';
+  }).join('');
+}
+
+function toggleReel(i){
+  if(selectedReels.has(i)){selectedReels.delete(i);document.getElementById('ri-'+i).classList.remove('selected');}
+  else{selectedReels.add(i);document.getElementById('ri-'+i).classList.add('selected');}
+  document.getElementById('selectedCount').textContent='Tanlandi: '+selectedReels.size;
+}
+function selectAll(){reelsData.forEach(function(_,i){selectedReels.add(i);var el=document.getElementById('ri-'+i);if(el)el.classList.add('selected');});document.getElementById('selectedCount').textContent='Tanlandi: '+selectedReels.size;}
+function selectTop(n){selectNone();reelsData.map(function(r,i){return{i:i,l:r.likesCount||0};}).sort(function(a,b){return b.l-a.l;}).slice(0,n).forEach(function(s){selectedReels.add(s.i);var el=document.getElementById('ri-'+s.i);if(el)el.classList.add('selected');});document.getElementById('selectedCount').textContent='Tanlandi: '+selectedReels.size;}
+function selectNone(){selectedReels.clear();document.querySelectorAll('.reel-item').forEach(function(el){el.classList.remove('selected');});document.getElementById('selectedCount').textContent='Tanlandi: 0';}
+
+async function startReelsAnalysis(){
+  var username=document.getElementById('reelsUsername').value.trim().replace('@','');
+  if(!selectedReels.size){alert('Kamida bitta reel tanlang!');return;}
+  var selected=Array.from(selectedReels).map(function(i){return reelsData[i];});
+  document.getElementById('errorBox').className='';
+  document.getElementById('report').className='';
+  document.getElementById('reelsPicker').className='';
+  document.getElementById('transcribeBtn').disabled=true;
+  document.getElementById('statusBox').className='active';
+  setProgress(0);
+  setStep('s1','running',selected.length+' ta reel transkripsiyaga yuborilmoqda...');
+  setStep('s2','pending','Kutilmoqda...');setStep('s3','pending','Kutilmoqda...');setStep('s4','pending','Kutilmoqda...');
+  try{
+    var res=await fetch('/api/transcribe-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,reels:selected})});
+    setStep('s1','done','So\'rov yuborildi ✓');
+    setStep('s2','running','Audio yuklab, Whisper bilan transkripsiya qilinmoqda...');
+    setProgress(20);
+    var data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error);
+    setStep('s2','done','Transkripsiya: '+data.transcribedCount+'/'+selected.length+' ✓');
+    setStep('s3','running','Claude tahlil qilmoqda...');
+    setProgress(75);
+    await new Promise(function(r){setTimeout(r,400);});
+    setStep('s3','done','Tahlil tayyor ✓');
+    setStep('s4','done','Hisobot tayyor ✓');
+    setProgress(100);
+    renderReport(data.username,data.analysis,[
+      {val:data.followers||'—',lbl:'Followers'},
+      {val:data.avgLikes?(+data.avgLikes).toLocaleString('ru'):'—',lbl:"O'rt. layk"},
+      {val:data.transcribedCount+' / '+data.totalSelected,lbl:'Transkripsiya'},
+    ],'Apify + Whisper + Claude',data.totalSelected+' reel',data.transcripts);
+    window._username=data.username;
+    window._reportText='@'+data.username+' — Reels Report\n'+'='.repeat(60)+'\nReels: '+data.totalSelected+' | Transkripsiya: '+data.transcribedCount+'\n\n'+data.analysis;
+    window._transcriptText=buildTxt(data);
+  }catch(e){showError(e.message);setStep('s1','err','✗ '+e.message);}
+  document.getElementById('transcribeBtn').disabled=false;
+}
+
+function renderReport(username,analysis,stats,powered,extra,transcripts){
+  document.getElementById('rUsername').textContent=username;
+  document.getElementById('rMeta').innerHTML='Sana: '+new Date().toLocaleDateString('ru')+'<br>'+extra+'<br>'+powered;
+  document.getElementById('statsGrid').innerHTML=stats.map(function(s){return '<div class="stat-card"><div class="stat-val">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';}).join('');
+  document.getElementById('rAnalysis').textContent=analysis||'—';
+  if(transcripts&&transcripts.length){
+    document.getElementById('transcriptList').innerHTML=transcripts.map(function(t,i){
+      var ok=t.transcript&&!t.transcript.startsWith('(');
+      return '<div class="transcript-item"><div class="transcript-meta">REEL '+(i+1)+' · '+t.date+' · ❤️ '+(t.likes||0)+' 💬 '+(t.comments||0)+'</div><div class="transcript-meta" style="color:#445">'+esc(t.caption||'')+'</div><span class="t-badge '+(ok?'ok':'fail')+'">'+(ok?'✓ transkripsiya qilindi':'✗ muvaffaqiyatsiz')+'</span><div class="transcript-text">'+esc(t.transcript||'(mavjud emas)')+'</div></div>';
     }).join('');
-
-    document.getElementById('rAnalysis').textContent = data.analysis;
-
-    if (data.transcripts && data.transcripts.length > 0) {
-      var tList = document.getElementById('transcriptList');
-      tList.innerHTML = data.transcripts.map(function(t, i) {
-        return '<div class="transcript-item">' +
-          '<div class="transcript-meta">VIDEO ' + (i+1) + ' · ' + t.date + ' · ❤️ ' + t.likes + ' 💬 ' + t.comments + '</div>' +
-          '<div class="transcript-meta" style="color:#556">' + (t.caption || '') + '</div>' +
-          '<div class="transcript-text">' + (t.transcript || '(mavjud emas)') + '</div>' +
-          '</div>';
-      }).join('');
-      document.getElementById('transcriptSection').style.display = 'block';
-    }
-
-    window._username = data.username;
-    window._reportText = '@' + data.username + ' — Instagram Report\n' + '='.repeat(60) + '\n\nFollowers: ' + data.followers + ' | ER: ' + data.erRate + '%\nSana: ' + new Date().toLocaleDateString('ru') + '\n\n' + data.analysis;
-
-    if (data.transcripts) {
-      window._transcriptText = 'TRANSKRIPSIYALAR @' + data.username + '\n' + '='.repeat(60) + '\n\n';
-      data.transcripts.forEach(function(t, i) {
-        window._transcriptText += '--- VIDEO ' + (i+1) + ' ---\n' + t.date + ' | ❤️ ' + t.likes + '\n' + t.caption + '\n\n' + t.transcript + '\n\n';
-      });
-    }
-
-    document.getElementById('report').className = 'visible';
-    document.getElementById('report').scrollIntoView({behavior:'smooth'});
-
-  } catch(e) {
-    showError(e.message);
+    document.getElementById('transcriptSection').style.display='block';
   }
-  document.getElementById('analyzeBtn').disabled = false;
+  document.getElementById('report').className='visible';
+  document.getElementById('report').scrollIntoView({behavior:'smooth'});
 }
 
-function copyReport() {
-  navigator.clipboard.writeText(window._reportText || '').then(function(){
-    var btn = document.getElementById('copyBtn');
-    btn.textContent = '✓ nusxalandi';
-    setTimeout(function(){ btn.textContent = '⎘ копировать отчёт'; }, 2000);
-  });
+function buildTxt(d){
+  var t='TRANSKRIPSIYALAR @'+(d.username||'')+'\n'+'='.repeat(60)+'\n';
+  (d.transcripts||[]).forEach(function(r,i){t+='\n--- REEL '+(i+1)+' ---\n'+(r.caption||'')+'\n\n'+(r.transcript||'')+'\n';});
+  return t;
 }
-
-function downloadReport() {
-  downloadFile(window._reportText || '', 'report_' + (window._username || 'instagram') + '.txt');
-}
-
-function downloadTranscripts() {
-  if (!window._transcriptText) { alert('Transkripsiyalar topilmadi'); return; }
-  downloadFile(window._transcriptText, 'transcripts_' + (window._username || 'instagram') + '.txt');
-}
-
-function downloadFile(text, filename) {
-  var blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
+function copyReport(){navigator.clipboard.writeText(window._reportText||'');}
+function downloadReport(){dlFile(window._reportText||'','report_'+(window._username||'ig')+'.txt');}
+function downloadTranscripts(){if(!window._transcriptText){alert('Transkripsiyalar topilmadi');return;}dlFile(window._transcriptText,'transcripts_'+(window._username||'ig')+'.txt');}
 </script>
 </body>
 </html>
