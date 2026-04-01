@@ -56,10 +56,7 @@ export default async function handler(req, res) {
     const avgLikes = Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length);
 
     const reelsForClaude = transcriptResults.map((r, i) =>
-      'REEL ' + (i+1) + ':\n' +
-      'Caption: ' + r.caption + '\n' +
-      'Layklar: ' + r.likes + ' | Izohlar: ' + r.comments + '\n' +
-      'Transkripsiya: ' + r.transcript
+      'REEL ' + (i+1) + ':\nCaption: ' + r.caption + '\nLayklar: ' + r.likes + ' | Izohlar: ' + r.comments + '\nTranskripsiya: ' + r.transcript
     ).join('\n\n---\n\n');
 
     const prompt = `Siz — Instagram kontent strategiyasi bo'yicha 10+ yillik tajribaga ega Senior Content Strategist siz.
@@ -94,7 +91,7 @@ FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
       "funnel_type": "<TOF|MOF|BOF>",
       "hook_score": <1 dan 10 gacha son>,
       "hook_analysis": "<dastlabki 3 soniya tahlili O'zbek tilida>",
-      "emotional_trigger": "<qaysi hissiyotni ishlatadi: qo'rquv/umid/qiziqish/g'urur/uyat/boshqa — O'zbek tilida>",
+      "emotional_trigger": "<qaysi hissiyotni ishlatadi O'zbek tilida>",
       "actual_likes": <son>,
       "expected_likes": <nechta bo'lishi kerak edi>,
       "performance_gap": "<nima uchun ko'p to'planmadi — 2-3 sabab O'zbek tilida>",
@@ -110,7 +107,7 @@ FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
             "trigger": "<yangi variantdagi hissiy trigger O'zbek tilida>"
           }
         ],
-        "outcome": "<barcha tuzatishlar qo'llanilsa nima bo'ladi — ko'rishlar, obunachlar, saqlashlar O'zbek tilida>"
+        "outcome": "<barcha tuzatishlar qo'llanilsa nima bo'ladi O'zbek tilida>"
       }
     }
   ],
@@ -146,9 +143,7 @@ FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
     const analysis = JSON.parse(analysisText);
 
     return res.status(200).json({
-      username,
-      avgLikes,
-      transcribedCount,
+      username, avgLikes, transcribedCount,
       totalSelected: reels.length,
       transcripts: transcriptResults,
       analysis
