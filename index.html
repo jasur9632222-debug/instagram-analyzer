@@ -1,156 +1,538 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instagram Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+:root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--accent:#e8ff47;--accent2:#ff6b35;--text:#f0f0f0;--muted:#555;--success:#47ffb2;--tof:#e8ff47;--mof:#47b2ff;--bof:#ff6b35;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding:40px 20px;}
+.container{max-width:900px;margin:0 auto;}
+header{margin-bottom:48px;border-bottom:1px solid var(--border);padding-bottom:32px;}
+.label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px;}
+h1{font-size:clamp(32px,6vw,52px);font-weight:800;line-height:1;letter-spacing:-.02em;}
+h1 span{color:var(--accent);}
+.subtitle{margin-top:12px;color:var(--muted);font-size:13px;font-family:'IBM Plex Mono',monospace;}
+.notice{background:#0d1a00;border:1px solid var(--accent);border-radius:2px;padding:20px 24px;margin-bottom:24px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);line-height:1.8;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
+.card-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;}
+input,textarea{background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:12px 16px;width:100%;transition:border-color .2s;outline:none;resize:none;}
+input:focus,textarea:focus{border-color:var(--accent);}
+input::placeholder{color:#333;}
+.mode-tabs{display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:2px;overflow:hidden;}
+.mode-tab{flex:1;background:transparent;border:none;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:12px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .2s;border-right:1px solid var(--border);}
+.mode-tab:last-child{border-right:none;}
+.mode-tab.active{background:var(--accent);color:#000;font-weight:700;}
+.count-select{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.count-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px 16px;cursor:pointer;border-radius:2px;transition:all .2s;}
+.count-btn.active{border-color:var(--accent);color:var(--accent);background:#111a00;}
+.btn{display:block;background:var(--accent);color:#000;border:none;border-radius:2px;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;padding:18px 32px;cursor:pointer;width:100%;margin-top:16px;text-transform:uppercase;letter-spacing:.05em;}
+.btn:hover{background:#d4eb00;}
+.btn:disabled{background:#222;color:#444;cursor:not-allowed;}
+.btn-sm{font-size:13px;padding:12px 20px;margin-top:12px;}
+#reelsPicker{display:none;background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:24px;margin-bottom:16px;}
+#reelsPicker.visible{display:block;animation:fadeIn .3s ease;}
+.picker-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;}
+.picker-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;}
+.picker-actions{display:flex;gap:8px;}
+.pab{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:6px 12px;cursor:pointer;border-radius:2px;}
+.pab:hover{border-color:var(--accent);color:var(--accent);}
+.reels-grid{display:grid;gap:8px;max-height:380px;overflow-y:auto;}
+.reel-item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--border);padding:12px 16px;border-radius:2px;cursor:pointer;transition:all .2s;}
+.reel-item.selected{border-color:var(--accent);background:#111a00;}
+.reel-check{width:16px;height:16px;border:1.5px solid var(--muted);border-radius:2px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;}
+.reel-item.selected .reel-check{background:var(--accent);border-color:var(--accent);color:#000;}
+.reel-caption{font-size:12px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.reel-stats{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px;}
+.reel-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap;}
+.picker-footer{margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.sel-count{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);}
+#statusBox{display:none;background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:24px 28px;margin-bottom:16px;}
+#statusBox.active{display:block;}
+.step{display:flex;align-items:center;gap:10px;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+.step.done{color:var(--success);}.step.running{color:var(--accent);}.step.err{color:var(--accent2);}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.spin{width:12px;height:12px;border:1.5px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.progress-bar{width:100%;height:3px;background:var(--border);border-radius:2px;margin-top:12px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--accent);width:0%;transition:width .5s ease;}
+#errorBox{display:none;background:#1a0800;border:1px solid var(--accent2);border-radius:2px;padding:16px 20px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent2);margin-bottom:16px;line-height:1.7;}
+#errorBox.visible{display:block;}
+#report{display:none;}
+#report.visible{display:block;animation:fadeIn .4s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.report-hero{background:var(--surface);border:1px solid var(--accent);border-radius:2px;padding:32px;margin-bottom:16px;}
+.report-username{font-size:36px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px;}
+.report-username span{color:var(--accent);}
+.report-summary{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ccc;line-height:1.8;margin-top:12px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:20px;}
+.stat-val{font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-.02em;}
+.stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.1em;}
+.funnel-section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
+.section-title{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.funnel-grid{display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:center;}
+.funnel-chart-wrap{position:relative;width:200px;height:200px;}
+.funnel-legend{display:flex;flex-direction:column;gap:16px;}
+.funnel-item{display:flex;flex-direction:column;gap:6px;}
+.funnel-label{display:flex;justify-content:space-between;align-items:center;}
+.funnel-name{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;}
+.funnel-pct{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);}
+.funnel-bar-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.funnel-bar{height:100%;border-radius:3px;}
+.funnel-ideal{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);}
+.funnel-verdict{background:#0d1a00;border:1px solid #1a2a00;border-radius:2px;padding:16px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaa;line-height:1.8;}
+.missed-leads{background:#1a0800;border:1px solid var(--accent2);border-radius:2px;padding:28px;margin-bottom:16px;text-align:center;}
+.missed-number{font-size:64px;font-weight:800;color:var(--accent2);letter-spacing:-.02em;line-height:1;}
+.missed-label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-top:8px;}
+.missed-exp{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666;margin-top:12px;line-height:1.7;}
+.video-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;margin-bottom:12px;overflow:hidden;}
+.video-card-header{padding:20px 24px;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:start;}
+.video-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:4px 10px;border-radius:2px;white-space:nowrap;}
+.badge-tof{background:#1a1a00;color:var(--tof);border:1px solid #2a2a00;}
+.badge-mof{background:#001a2a;color:var(--mof);border:1px solid #002a3a;}
+.badge-bof{background:#1a0800;color:var(--bof);border:1px solid #2a1000;}
+.video-caption{font-size:13px;color:#ccc;margin-bottom:8px;line-height:1.5;}
+.video-metrics{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;}
+.metric{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+.metric span{color:var(--text);}
+.video-scores{display:flex;flex-direction:column;gap:8px;min-width:140px;}
+.score-row{display:flex;flex-direction:column;gap:3px;}
+.score-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;}
+.score-bar-wrap{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.score-bar{height:100%;border-radius:2px;}
+.score-val{font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:right;}
+.performance-gap{background:#0a0a0a;border-top:1px solid var(--border);padding:12px 24px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);line-height:1.7;}
+.expand-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);cursor:pointer;margin-top:4px;}
+.video-detail{display:none;border-top:1px solid var(--border);padding:24px;}
+.video-detail.open{display:block;animation:fadeIn .3s ease;}
+.detail-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;}
+.sentence-item{background:var(--bg);border-radius:2px;padding:16px;margin-bottom:12px;}
+.sentence-original{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#888;text-decoration:line-through;margin-bottom:6px;}
+.sentence-problem{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);margin-bottom:6px;}
+.sentence-fix{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--success);margin-bottom:6px;}
+.sentence-why{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#666;margin-bottom:6px;}
+.sentence-trigger{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;background:#0a1a0a;border:1px solid #1a3a1a;color:var(--success);border-radius:2px;}
+.outcome-box{background:#0d1a00;border:1px solid #1a3a00;border-radius:2px;padding:16px;margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaccaa;line-height:1.8;}
+.hook-analysis{background:#0a0a1a;border:1px solid #1a1a2a;border-radius:2px;padding:16px;margin-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaaacc;line-height:1.8;}
+.emotional-trigger{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;background:#1a0a1a;border:1px solid #3a1a3a;color:#cc88ff;border-radius:2px;margin-bottom:12px;}
+.recs-section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
+.rec-item{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--border);}
+.rec-item:last-child{border-bottom:none;}
+.rec-num{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:800;color:var(--accent);flex-shrink:0;width:32px;}
+.rec-text{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ccc;line-height:1.8;}
+.btn-row{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px 18px;cursor:pointer;border-radius:2px;}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent);}
+.dl-btn{background:var(--accent);border:none;color:#000;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;padding:10px 18px;cursor:pointer;border-radius:2px;}
+.dl-btn:hover{background:#d4eb00;}
+.pdf-btn{background:#ff6b35;border:none;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;padding:10px 18px;cursor:pointer;border-radius:2px;}
+.pdf-btn:hover{background:#e55a25;}
+@media(max-width:600px){.funnel-grid{grid-template-columns:1fr;}.video-card-header{grid-template-columns:auto 1fr;}.video-scores{display:none;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="label">// аналитический инструмент v5.0</div>
+    <h1>INSTAGRAM<br><span>ANALYZER</span></h1>
+    <div class="subtitle">→ reels · transkripsiya · TOF/MOF/BOF · ssenariy tahlili</div>
+  </header>
 
-  const { username, reels } = req.body;
-  const GROQ_KEY = process.env.GROQ_KEY;
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
+  <div class="notice">
+    🤝 Bu vosita foydalanish uchun to'lov talab qiladi — xizmat xarajatlarini qoplash uchun.<br>
+    → Savol: <a href="https://t.me/Kodiyusufbay" style="color:var(--accent)">@Kodiyusufbay</a>
+  </div>
 
-  if (!reels || !reels.length) return res.status(400).json({ error: 'Reels not provided' });
+  <div class="card">
+    <div class="card-title">// tahlil turini tanlang</div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="setMode('posts',this)">📝 Postlar tahlili</button>
+      <button class="mode-tab" onclick="setMode('reels',this)">▶ Reels transkripsiya</button>
+    </div>
+    <div id="modePostsUI">
+      <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov"/>
+      <button class="btn" id="analyzeBtn" onclick="startAnalysis()">▶ TAHLIL BOSHLASH</button>
+    </div>
+    <div id="modeReelsUI" style="display:none">
+      <input type="text" id="reelsUsername" placeholder="username (@ siz)"/>
+      <div class="label" style="margin-top:16px;margin-bottom:8px;">// nechta reel yuklash</div>
+      <div class="count-select">
+        <button class="count-btn" onclick="setCount(5,this)">5</button>
+        <button class="count-btn active" onclick="setCount(10,this)">10</button>
+        <button class="count-btn" onclick="setCount(20,this)">20</button>
+        <button class="count-btn" onclick="setCount(30,this)">30</button>
+      </div>
+      <button class="btn btn-sm" id="loadReelsBtn" onclick="loadReels()">▶ REELSLARNI YUKLASH</button>
+    </div>
+  </div>
 
-  async function transcribeReel(reel) {
-    try {
-      const videoUrl = reel.videoUrl;
-      if (!videoUrl) return null;
-      const videoRes = await fetch(videoUrl);
-      if (!videoRes.ok) return null;
-      const videoBuffer = await videoRes.arrayBuffer();
-      if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
-      const uint8Array = new Uint8Array(videoBuffer);
-      const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
-      const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="language"\r\n\r\nuz\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
-      const afterFile = '\r\n--' + boundary + '--\r\n';
-      const beforeBytes = new TextEncoder().encode(beforeFile);
-      const afterBytes = new TextEncoder().encode(afterFile);
-      const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);
-      body.set(beforeBytes, 0);
-      body.set(uint8Array, beforeBytes.length);
-      body.set(afterBytes, beforeBytes.length + uint8Array.length);
-      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'multipart/form-data; boundary=' + boundary },
-        body: body
-      });
-      if (!groqRes.ok) return null;
-      return await groqRes.text() || null;
-    } catch(e) { return null; }
-  }
+  <div id="reelsPicker">
+    <div class="picker-header">
+      <div class="picker-title">// tahlil uchun reelslarni tanlang</div>
+      <div class="picker-actions">
+        <button class="pab" onclick="selectAll()">Barchasi</button>
+        <button class="pab" onclick="selectTop(5)">Top 5</button>
+        <button class="pab" onclick="selectNone()">Tozalash</button>
+      </div>
+    </div>
+    <div class="reels-grid" id="reelsGrid"></div>
+    <div class="picker-footer">
+      <div class="sel-count" id="selectedCount">Tanlandi: 0</div>
+      <button class="btn btn-sm" id="transcribeBtn" onclick="startReelsAnalysis()">▶ TRANSKRIPSIYA + TAHLIL</button>
+    </div>
+  </div>
 
-  try {
-    const transcriptResults = await Promise.all(reels.map(async (reel) => {
-      const transcript = await transcribeReel(reel);
-      return {
-        shortCode: reel.shortCode,
-        url: reel.url,
-        caption: (reel.caption || '').slice(0, 300),
-        likes: reel.likesCount || 0,
-        comments: reel.commentsCount || 0,
-        date: reel.timestamp ? new Date(reel.timestamp * 1000).toLocaleDateString('ru') : '?',
-        transcript: transcript || '(mavjud emas)'
-      };
-    }));
+  <div id="errorBox"></div>
+  <div id="statusBox">
+    <div class="step" id="s1"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="step" id="s2"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="step" id="s3"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="step" id="s4"><div class="dot"></div><span>Kutilmoqda...</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
 
-    const transcribedCount = transcriptResults.filter(r => r.transcript !== '(mavjud emas)').length;
-    const avgLikes = Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length);
+  <div id="report"></div>
+</div>
 
-    const reelsForClaude = transcriptResults.map((r, i) =>
-      'REEL ' + (i+1) + ':\nCaption: ' + r.caption + '\nLayklar: ' + r.likes + ' | Izohlar: ' + r.comments + '\nTranskripsiya: ' + r.transcript
-    ).join('\n\n---\n\n');
+<script>
+var currentMode='posts',reelLimit=10,reelsData=[],selectedReels=new Set(),funnelChart=null;
 
-    const prompt = `Siz — Instagram kontent strategiyasi bo'yicha 10+ yillik tajribaga ega Senior Content Strategist siz.
-
-Hisob: @${username}
-Tahlil qilingan reels: ${reels.length}
-Transkripsiya qilingan: ${transcribedCount}
-O'rtacha layk: ${avgLikes}
-
-TRANSKRIPSIYALAR:
-${reelsForClaude}
-
-FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
-
-{
-  "funnel": {
-    "tof": <0 dan 100 gacha son>,
-    "mof": <0 dan 100 gacha son>,
-    "bof": <0 dan 100 gacha son>,
-    "ideal": {"tof": 60, "mof": 30, "bof": 10},
-    "verdict": "<voronka balansi haqida 2-3 gap O'zbek tilida>",
-    "niche": "<muallifning nishasi O'zbek tilida>",
-    "niche_avg_er": "<bu nishadagi o'rtacha ER, masalan 2-4%>"
-  },
-  "missed_leads": {
-    "count": <taxminiy yo'qotilgan so'rovlar soni>,
-    "explanation": "<qanday hisoblanganligi O'zbek tilida>"
-  },
-  "videos": [
-    {
-      "index": 1,
-      "funnel_type": "<TOF|MOF|BOF>",
-      "hook_score": <1 dan 10 gacha son>,
-      "hook_analysis": "<dastlabki 3 soniya tahlili O'zbek tilida>",
-      "emotional_trigger": "<qaysi hissiyotni ishlatadi O'zbek tilida>",
-      "actual_likes": <son>,
-      "expected_likes": <nechta bo'lishi kerak edi>,
-      "performance_gap": "<nima uchun ko'p to'planmadi — 2-3 sabab O'zbek tilida>",
-      "viral_potential": <1 dan 10 gacha son>,
-      "summary": "<video haqida qisqacha xulosa O'zbek tilida>",
-      "deep_analysis": {
-        "sentences": [
-          {
-            "original": "<transkripsiyadan original ibora>",
-            "problem": "<nima uchun ishlamadi O'zbek tilida>",
-            "fix": "<tuzatilgan variant O'zbek tilida>",
-            "why_fix_works": "<nima uchun yangi variant yaxshiroq O'zbek tilida>",
-            "trigger": "<yangi variantdagi hissiy trigger O'zbek tilida>"
-          }
-        ],
-        "outcome": "<barcha tuzatishlar qo'llanilsa nima bo'ladi O'zbek tilida>"
-      }
-    }
-  ],
-  "executive_summary": "<umuman hisob haqida 3-4 gap O'zbek tilida>",
-  "funnel_recommendations": "<TOF/MOF/BOF nisbatini o'zgartirish bo'yicha tavsiya O'zbek tilida>",
-  "top_recommendations": [
-    "<1-tavsiya O'zbek tilida>",
-    "<2-tavsiya O'zbek tilida>",
-    "<3-tavsiya O'zbek tilida>",
-    "<4-tavsiya O'zbek tilida>",
-    "<5-tavsiya O'zbek tilida>"
-  ]
-}`;
-
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    if (!claudeRes.ok) throw new Error('Claude error: ' + claudeRes.status);
-    const claudeData = await claudeRes.json();
-    let analysisText = claudeData.content[0].text.trim();
-    analysisText = analysisText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const analysis = JSON.parse(analysisText);
-
-    return res.status(200).json({
-      username, avgLikes, transcribedCount,
-      totalSelected: reels.length,
-      transcripts: transcriptResults,
-      analysis
-    });
-
-  } catch(e) {
-    console.log('ERROR:', e.message);
-    return res.status(500).json({ error: e.message });
-  }
+function setMode(mode,el){
+  currentMode=mode;
+  document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('modePostsUI').style.display=mode==='posts'?'block':'none';
+  document.getElementById('modeReelsUI').style.display=mode==='reels'?'block':'none';
+  document.getElementById('reelsPicker').className='';
+  document.getElementById('report').innerHTML='';
+  document.getElementById('report').className='';
+  document.getElementById('errorBox').className='';
 }
+
+function setCount(n,el){
+  reelLimit=n;
+  document.querySelectorAll('.count-select .count-btn').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');
+}
+
+function setStep(id,state,text){
+  var el=document.getElementById(id);
+  el.className='step '+state;
+  el.innerHTML=(state==='running'?'<div class="spin"></div>':'<div class="dot"></div>')+'<span>'+text+'</span>';
+}
+function setProgress(pct){document.getElementById('progressFill').style.width=pct+'%';}
+function showError(msg){var eb=document.getElementById('errorBox');eb.innerHTML='✗ XATO: '+msg;eb.className='visible';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dlFile(text,name){var b=new Blob([text],{type:'text/plain;charset=utf-8'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+function scoreColor(s){return s>=8?'#47ffb2':s>=5?'#e8ff47':'#ff6b35';}
+function badgeClass(t){return t==='TOF'?'badge-tof':t==='MOF'?'badge-mof':'badge-bof';}
+
+function renderFunnelChart(funnel){
+  if(funnelChart)funnelChart.destroy();
+  var ctx=document.getElementById('funnelChart');
+  if(!ctx)return;
+  funnelChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:['TOF','MOF','BOF'],datasets:[{data:[funnel.tof,funnel.mof,funnel.bof],backgroundColor:['#e8ff47','#47b2ff','#ff6b35'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:true,cutout:'70%',plugins:{legend:{display:false}}}
+  });
+}
+
+async function downloadPDF(){
+  var btn=document.querySelector('.pdf-btn');
+  if(!btn)return;
+  btn.textContent='PDF tayyorlanmoqda...';
+  btn.disabled=true;
+  try{
+    var reportEl=document.getElementById('report');
+    var style=document.createElement('style');
+    style.id='pdf-light';
+    style.textContent=`
+      #report{background:#fff!important;color:#111!important;padding:32px!important;}
+      #report .report-hero{background:#f5f5f5!important;border-color:#333!important;}
+      #report .report-summary,#report .rec-text,#report .funnel-ideal,#report .missed-exp,#report .sentence-why{color:#444!important;}
+      #report .stat-card,#report .funnel-section,#report .recs-section,#report .video-card{background:#f5f5f5!important;border-color:#ddd!important;}
+      #report .stat-val,#report .report-username span,#report .funnel-pct,#report .rec-num,#report .section-title,#report .label,#report .picker-title{color:#1a6600!important;}
+      #report .stat-lbl,#report .score-label,#report .expand-btn,#report .metric,#report .reel-stats,#report .reel-date{color:#666!important;}
+      #report .missed-leads{background:#fff3f0!important;border-color:#ff6b35!important;}
+      #report .missed-number{color:#cc3300!important;}
+      #report .missed-label{color:#666!important;}
+      #report .funnel-verdict{background:#f0f5f0!important;border-color:#ccc!important;color:#444!important;}
+      #report .hook-analysis{background:#f0f0f8!important;border-color:#ccc!important;color:#444!important;}
+      #report .sentence-item{background:#f8f8f8!important;}
+      #report .sentence-original{color:#999!important;}
+      #report .sentence-fix{color:#1a6600!important;}
+      #report .sentence-problem{color:#cc3300!important;}
+      #report .outcome-box{background:#f0f5f0!important;border-color:#aaccaa!important;color:#336633!important;}
+      #report .performance-gap{background:#fff8f0!important;color:#cc3300!important;}
+      #report .video-detail{background:#fafafa!important;}
+      #report .score-bar-wrap,#report .funnel-bar-wrap{background:#e0e0e0!important;}
+      #report .rec-item{border-color:#ddd!important;}
+      #report .report-username{color:#111!important;}
+      #report .video-caption{color:#333!important;}
+      #report .badge-tof{background:#fafae0!important;color:#665500!important;border-color:#cccc00!important;}
+      #report .badge-mof{background:#e0f0fa!important;color:#003366!important;border-color:#99ccff!important;}
+      #report .badge-bof{background:#faeae0!important;color:#663300!important;border-color:#ffaa88!important;}
+      #report .emotional-trigger{background:#f5eefa!important;border-color:#cc88ff!important;color:#663399!important;}
+      #report .sentence-trigger{background:#eafaea!important;border-color:#47ffb2!important;color:#006633!important;}
+    `;
+    document.head.appendChild(style);
+    await new Promise(function(r){setTimeout(r,400);});
+    var canvas=await html2canvas(reportEl,{backgroundColor:'#ffffff',scale:1.5,useCORS:true,logging:false});
+    document.getElementById('pdf-light').remove();
+    var imgData=canvas.toDataURL('image/jpeg',0.92);
+    var jsPDF=window.jspdf.jsPDF;
+    var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var pageW=pdf.internal.pageSize.getWidth();
+    var pageH=pdf.internal.pageSize.getHeight();
+    var margin=10;
+    var imgW=pageW-margin*2;
+    var imgH=canvas.height*imgW/canvas.width;
+    var totalPages=Math.ceil(imgH/(pageH-margin*2));
+    for(var i=0;i<totalPages;i++){
+      if(i>0)pdf.addPage();
+      var sy=i*(pageH-margin*2)*canvas.width/imgW;
+      var sh=Math.min((pageH-margin*2)*canvas.width/imgW,canvas.height-sy);
+      var sc=document.createElement('canvas');
+      sc.width=canvas.width;
+      sc.height=sh;
+      var sctx=sc.getContext('2d');
+      sctx.fillStyle='#ffffff';
+      sctx.fillRect(0,0,sc.width,sc.height);
+      sctx.drawImage(canvas,0,sy,canvas.width,sh,0,0,canvas.width,sh);
+      pdf.addImage(sc.toDataURL('image/jpeg',0.92),'JPEG',margin,margin,imgW,sh*imgW/canvas.width);
+    }
+    var uname=window._reportData&&window._reportData.username||'report';
+    pdf.save('instagram_analyzer_'+uname+'.pdf');
+  }catch(e){
+    var ps=document.getElementById('pdf-light');
+    if(ps)ps.remove();
+    alert('PDF xatosi: '+e.message);
+  }
+  btn.textContent='↓ PDF yuklab olish';
+  btn.disabled=false;
+}
+
+function renderReelsReport(data){
+  var a=data.analysis;
+  var report=document.getElementById('report');
+  report.className='visible';
+  var html='';
+  html+='<div class="report-hero"><div class="label">// hisobot · '+new Date().toLocaleDateString('ru')+'</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
+  if(a.executive_summary)html+='<div class="report-summary">'+esc(a.executive_summary)+'</div>';
+  html+='</div>';
+  html+='<div class="stats-grid">';
+  html+='<div class="stat-card"><div class="stat-val">'+data.totalSelected+'</div><div class="stat-lbl">Reels tahlil</div></div>';
+  html+='<div class="stat-card"><div class="stat-val">'+data.transcribedCount+'</div><div class="stat-lbl">Transkripsiya</div></div>';
+  html+='<div class="stat-card"><div class="stat-val">'+(data.avgLikes||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>';
+  if(a.funnel)html+='<div class="stat-card"><div class="stat-val">'+esc(a.funnel.niche_avg_er||'—')+'</div><div class="stat-lbl">Nisha ER</div></div>';
+  html+='</div>';
+  if(a.funnel){
+    html+='<div class="funnel-section"><div class="section-title">// TOF / MOF / BOF — kontent voronkasi</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Voronka — auditoriyani notanishdan mijozga aylantirish yo\'li. <strong style="color:#ccc">TOF 60%</strong> yangi auditoriya. <strong style="color:#ccc">MOF 30%</strong> ishonch. <strong style="color:#ccc">BOF 10%</strong> sotuv.</div>';
+    html+='<div class="funnel-grid"><div class="funnel-chart-wrap"><canvas id="funnelChart" width="200" height="200"></canvas></div>';
+    html+='<div class="funnel-legend">';
+    [{key:'tof',label:'TOF',color:'var(--tof)',ideal:60},{key:'mof',label:'MOF',color:'var(--mof)',ideal:30},{key:'bof',label:'BOF',color:'var(--bof)',ideal:10}].forEach(function(item){
+      var val=a.funnel[item.key]||0;var diff=val-item.ideal;
+      html+='<div class="funnel-item"><div class="funnel-label"><span class="funnel-name" style="color:'+item.color+'">'+item.label+'</span><span class="funnel-pct">'+val+'%</span></div>';
+      html+='<div class="funnel-bar-wrap"><div class="funnel-bar" style="width:'+val+'%;background:'+item.color+'"></div></div>';
+      html+='<div class="funnel-ideal">Ideal: '+item.ideal+'% <span style="color:'+(Math.abs(diff)<=10?'var(--success)':'var(--accent2)')+';">'+(diff>0?'+':'')+diff+'%</span></div></div>';
+    });
+    html+='</div></div>';
+    if(a.funnel.verdict)html+='<div class="funnel-verdict">'+esc(a.funnel.verdict)+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
+    html+='</div>';
+  }
+  if(a.missed_leads){
+    html+='<div class="missed-leads"><div class="label">// yo\'qotilgan imkoniyatlar</div>';
+    html+='<div class="missed-number">~'+a.missed_leads.count+'</div>';
+    html+='<div class="missed-label">potentsial so\'rovlar yo\'qotildi</div>';
+    html+='<div class="missed-exp">'+esc(a.missed_leads.explanation||'')+'</div></div>';
+  }
+  if(a.videos&&a.videos.length){
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">// har bir reel tahlili</div>';
+    a.videos.forEach(function(v,i){
+      var tr=data.transcripts[i]||{};
+      html+='<div class="video-card"><div class="video-card-header" onclick="toggleDetail('+i+')">';
+      html+='<span class="video-badge '+badgeClass(v.funnel_type||'TOF')+'">'+esc(v.funnel_type||'?')+'</span>';
+      html+='<div><div class="video-caption">'+esc((tr.caption||v.summary||'').slice(0,100))+'</div>';
+      html+='<div class="video-metrics"><div class="metric">❤️ <span>'+(tr.likes||v.actual_likes||0).toLocaleString('ru')+'</span></div><div class="metric">💬 <span>'+(tr.comments||0)+'</span></div>';
+      if(v.expected_likes)html+='<div class="metric">🎯 <span style="color:'+(v.expected_likes>(v.actual_likes||0)?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+' kutilgan</span></div>';
+      html+='</div><div class="expand-btn" id="eb-'+i+'">▼ Batafsil tahlil</div></div>';
+      html+='<div class="video-scores">';
+      html+='<div class="score-row"><div class="score-label">Huk</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+scoreColor(v.hook_score||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.hook_score||5)+'">'+(v.hook_score||5)+'/10</div></div>';
+      html+='<div class="score-row"><div class="score-label">Viral</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+scoreColor(v.viral_potential||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.viral_potential||5)+'">'+(v.viral_potential||5)+'/10</div></div>';
+      html+='</div></div>';
+      if(v.performance_gap)html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
+      html+='<div class="video-detail" id="vd-'+i+'">';
+      if(v.emotional_trigger)html+='<span class="emotional-trigger">🧠 '+esc(v.emotional_trigger)+'</span>';
+      if(v.hook_analysis)html+='<div class="hook-analysis">🎣 '+esc(v.hook_analysis)+'</div>';
+      if(v.deep_analysis&&v.deep_analysis.sentences&&v.deep_analysis.sentences.length){
+        html+='<div class="detail-title">// ssenariy tahlili</div>';
+        v.deep_analysis.sentences.forEach(function(s){
+          html+='<div class="sentence-item"><div class="sentence-original">❌ '+esc(s.original||'')+'</div><div class="sentence-problem">Muammo: '+esc(s.problem||'')+'</div><div class="sentence-fix">✅ '+esc(s.fix||'')+'</div><div class="sentence-why">'+esc(s.why_fix_works||'')+'</div>';
+          if(s.trigger)html+='<span class="sentence-trigger">'+esc(s.trigger)+'</span>';
+          html+='</div>';
+        });
+      }
+      if(v.deep_analysis&&v.deep_analysis.outcome)html+='<div class="outcome-box">🚀 '+esc(v.deep_analysis.outcome)+'</div>';
+      html+='</div></div>';
+    });
+  }
+  if(a.top_recommendations&&a.top_recommendations.length){
+    html+='<div class="recs-section"><div class="section-title">// tavsiyalar</div>';
+    a.top_recommendations.forEach(function(r,i){html+='<div class="rec-item"><div class="rec-num">0'+(i+1)+'</div><div class="rec-text">'+esc(r)+'</div></div>';});
+    html+='</div>';
+  }
+  html+='<div class="btn-row"><button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button><button class="dl-btn" onclick="downloadTxt()">↓ .txt</button><button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button></div>';
+  report.innerHTML=html;
+  window._reportData=data;
+  setTimeout(function(){if(a.funnel)renderFunnelChart(a.funnel);},100);
+  report.scrollIntoView({behavior:'smooth'});
+}
+
+function toggleDetail(i){
+  var vd=document.getElementById('vd-'+i);var eb=document.getElementById('eb-'+i);
+  if(vd.classList.contains('open')){vd.classList.remove('open');eb.textContent='▼ Batafsil tahlil';}
+  else{vd.classList.add('open');eb.textContent='▲ Yopish';}
+}
+
+function copyTxt(){if(window._reportData)navigator.clipboard.writeText(buildTxt(window._reportData));}
+function downloadTxt(){if(window._reportData)dlFile(buildTxt(window._reportData),'report_'+(window._reportData.username||'ig')+'.txt');}
+function buildTxt(d){
+  var t='@'+(d.username||'')+' — Reels Report\n'+'='.repeat(60)+'\n\n';
+  if(d.analysis){
+    t+='EXECUTIVE SUMMARY:\n'+(d.analysis.executive_summary||'')+'\n\n';
+    if(d.analysis.funnel)t+='VORONKA: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';
+    if(d.analysis.missed_leads)t+='YO\'QOTILGAN: ~'+d.analysis.missed_leads.count+'\n\n';
+    if(d.analysis.videos)d.analysis.videos.forEach(function(v,i){t+='REEL '+(i+1)+' ['+v.funnel_type+']\nHuk: '+v.hook_score+'/10 | Viral: '+v.viral_potential+'/10\n'+(v.performance_gap||'')+'\n\n';});
+    if(d.analysis.top_recommendations)d.analysis.top_recommendations.forEach(function(r,i){t+=(i+1)+'. '+r+'\n';});
+  }
+  return t;
+}
+
+async function startAnalysis(){
+  var username=document.getElementById('username').value.trim().replace('@','');
+  if(!username){alert('Username kiriting!');return;}
+  document.getElementById('errorBox').className='';
+  document.getElementById('report').innerHTML='';
+  document.getElementById('report').className='';
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('statusBox').className='active';
+  setProgress(0);
+  setStep('s1','running','Apify ishga tushirilmoqda...');
+  setStep('s2','pending','Kutilmoqda...');setStep('s3','pending','Kutilmoqda...');setStep('s4','pending','Kutilmoqda...');
+  try{
+    var startRes=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username})});
+    var startData=await startRes.json();
+    if(!startRes.ok||startData.error)throw new Error(startData.error);
+    var runId=startData.runId,datasetId=startData.datasetId;
+    setStep('s1','done','Apify ishga tushdi ✓');
+    setStep('s2','running','Instagram scraping...');
+    setProgress(10);
+    var attempts=0,data=null;
+    while(attempts<60){
+      await new Promise(function(r){setTimeout(r,5000);});
+      attempts++;
+      setProgress(10+Math.min(attempts/60*70,70));
+      setStep('s2','running','Ishlanmoqda... '+(attempts*5)+'s');
+      var pollRes=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:runId,datasetId:datasetId,username:username})});
+      var pollData=await pollRes.json();
+      if(pollData.error)throw new Error(pollData.error);
+      if(pollData.status==='done'){data=pollData;break;}
+    }
+    if(!data)throw new Error('Timeout');
+    setStep('s2','done','✓');setStep('s3','done','✓');setStep('s4','done','✓');
+    setProgress(100);
+    var report=document.getElementById('report');
+    report.className='visible';
+    report.innerHTML='<div class="report-hero"><div class="label">// postlar tahlili</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div></div>'+
+    '<div class="stats-grid">'+
+    '<div class="stat-card"><div class="stat-val">'+(typeof data.followers==='number'?data.followers.toLocaleString('ru'):data.followers)+'</div><div class="stat-lbl">Followers</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+data.avgLikes.toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+data.erRate+'%</div><div class="stat-lbl">ER Rate</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+data.postsCount+'</div><div class="stat-lbl">Postlar</div></div>'+
+    '</div>'+
+    '<div class="recs-section"><div class="section-title">// tahlil · claude ai</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;line-height:1.9;color:#ccc;white-space:pre-wrap;">'+esc(data.analysis)+'</div></div>'+
+    '<div class="btn-row"><button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button><button class="dl-btn" onclick="downloadTxt()">↓ .txt</button><button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button></div>';
+    window._reportData=data;
+    report.scrollIntoView({behavior:'smooth'});
+  }catch(e){showError(e.message);}
+  document.getElementById('analyzeBtn').disabled=false;
+}
+
+async function loadReels(){
+  var username=document.getElementById('reelsUsername').value.trim().replace('@','');
+  if(!username){alert('Username kiriting!');return;}
+  document.getElementById('errorBox').className='';
+  document.getElementById('reelsPicker').className='';
+  var btn=document.getElementById('loadReelsBtn');
+  btn.disabled=true;btn.textContent='Yuklanmoqda...';
+  try{
+    var res=await fetch('/api/get-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,limit:reelLimit})});
+    var data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error||'Xato');
+    reelsData=data.reels||[];
+    if(!reelsData.length)throw new Error('Reels topilmadi');
+    renderPicker(reelsData);
+    document.getElementById('reelsPicker').className='visible';
+    selectAll();
+  }catch(e){showError(e.message);}
+  btn.disabled=false;btn.textContent='▶ REELSLARNI YUKLASH';
+}
+
+function renderPicker(reels){
+  document.getElementById('reelsGrid').innerHTML=reels.map(function(r,i){
+    var cap=esc((r.caption||'(tavsif yo\'q)').slice(0,80));
+    var date=r.timestamp?new Date(r.timestamp*1000).toLocaleDateString('ru'):'—';
+    return '<div class="reel-item" id="ri-'+i+'" onclick="toggleReel('+i+')">'+'<div class="reel-check" id="rc-'+i+'">✓</div>'+'<div><div class="reel-caption">'+cap+'</div><div class="reel-stats">❤️ '+(r.likesCount||0).toLocaleString('ru')+' 💬 '+(r.commentsCount||0)+'</div></div>'+'<div class="reel-date">'+date+'</div></div>';
+  }).join('');
+}
+
+function toggleReel(i){
+  if(selectedReels.has(i)){selectedReels.delete(i);document.getElementById('ri-'+i).classList.remove('selected');}
+  else{selectedReels.add(i);document.getElementById('ri-'+i).classList.add('selected');}
+  document.getElementById('selectedCount').textContent='Tanlandi: '+selectedReels.size;
+}
+function selectAll(){reelsData.forEach(function(_,i){selectedReels.add(i);var el=document.getElementById('ri-'+i);if(el)el.classList.add('selected');});document.getElementById('selectedCount').textContent='Tanlandi: '+selectedReels.size;}
+function selectTop(n){selectNone();reelsData.map(function(r,i){return{i:i,l:r.likesCount||0};}).sort(function(a,b){return b.l-a.l;}).slice(0,n).forEach(function(s){selectedReels.add(s.i);var el=document.getElementById('ri-'+s.i);if(el)el.classList.add('selected');});document.getElementById('selectedCount').textContent='Tanlandi: '+selectedReels.size;}
+function selectNone(){selectedReels.clear();document.querySelectorAll('.reel-item').forEach(function(el){el.classList.remove('selected');});document.getElementById('selectedCount').textContent='Tanlandi: 0';}
+
+async function startReelsAnalysis(){
+  var username=document.getElementById('reelsUsername').value.trim().replace('@','');
+  if(!selectedReels.size){alert('Kamida bitta reel tanlang!');return;}
+  var selected=Array.from(selectedReels).map(function(i){return reelsData[i];});
+  document.getElementById('errorBox').className='';
+  document.getElementById('report').innerHTML='';
+  document.getElementById('report').className='';
+  document.getElementById('reelsPicker').className='';
+  document.getElementById('transcribeBtn').disabled=true;
+  document.getElementById('statusBox').className='active';
+  setProgress(0);
+  setStep('s1','running',selected.length+' ta reel yuborilmoqda...');
+  setStep('s2','pending','Kutilmoqda...');setStep('s3','pending','Kutilmoqda...');setStep('s4','pending','Kutilmoqda...');
+  try{
+    setProgress(10);
+    var res=await fetch('/api/transcribe-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,reels:selected})});
+    setStep('s1','done','✓');
+    setStep('s2','running','Transkripsiya va tahlil...');
+    setProgress(50);
+    var data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error);
+    setStep('s2','done','Transkripsiya: '+data.transcribedCount+'/'+selected.length+' ✓');
+    setStep('s3','done','Claude tahlil ✓');
+    setStep('s4','done','Hisobot tayyor ✓');
+    setProgress(100);
+    data.totalSelected=selected.length;
+    renderReelsReport(data);
+  }catch(e){showError(e.message);setStep('s1','err','✗ '+e.message);}
+  document.getElementById('transcribeBtn').disabled=false;
+}
+</script>
+</body>
+</html>
