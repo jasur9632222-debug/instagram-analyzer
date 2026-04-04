@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { username, reels } = req.body;
-  const DEEPGRAM_KEY = process.env.DEEPGRAM_KEY;
+  const GROQ_KEY = process.env.GROQ_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
   if (!reels || !reels.length) return res.status(400).json({ error: 'Reels not provided' });
@@ -14,51 +14,84 @@ export default async function handler(req, res) {
     try {
       if (!reel || !reel.videoUrl) return null;
 
-      const videoUrl = reel.videoUrl;
-      console.log('Fetching video:', videoUrl.slice(0, 60));
-
-      const videoRes = await fetch(videoUrl);
-      console.log('Video status:', videoRes.status);
+      const videoRes = await fetch(reel.videoUrl);
       if (!videoRes.ok) return null;
 
       const videoBuffer = await videoRes.arrayBuffer();
-      console.log('Video size:', videoBuffer.byteLength);
       if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
 
-      // Deepgram API
-      const deepgramRes = await fetch('https://api.deepgram.com/v1/listen?language=uz&model=nova-3&smart_format=true&punctuate=true', {
+      const uint8Array = new Uint8Array(videoBuffer);
+      const boundary = '----FB' + Math.random().toString(36).slice(2);
+
+      const beforeFile =
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
+      const afterFile = '\r\n--' + boundary + '--\r\n';
+
+      const beforeBytes = new TextEncoder().encode(beforeFile);
+      const afterBytes = new TextEncoder().encode(afterFile);
+      const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);
+      body.set(beforeBytes, 0);
+      body.set(uint8Array, beforeBytes.length);
+      body.set(afterBytes, beforeBytes.length + uint8Array.length);
+
+      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST',
         headers: {
-          'Authorization': 'Token ' + DEEPGRAM_KEY,
-          'Content-Type': 'video/mp4'
+          'Authorization': 'Bearer ' + GROQ_KEY,
+          'Content-Type': 'multipart/form-data; boundary=' + boundary
         },
-        body: videoBuffer
+        body: body
       });
 
-      console.log('Deepgram status:', deepgramRes.status);
-      if (!deepgramRes.ok) {
-        const err = await deepgramRes.text();
-        console.log('Deepgram error:', err.slice(0, 200));
-        return null;
-      }
+      if (!groqRes.ok) return null;
+      const rawText = await groqRes.text();
+      if (!rawText || rawText.length < 5) return null;
 
-      const deepgramData = await deepgramRes.json();
-      const transcript = deepgramData?.results?.channels?.[0]?.alternatives?.[0]?.transcript;
-      console.log('Transcript:', transcript ? transcript.slice(0, 100) : 'EMPTY');
-      return transcript || null;
+      // Claude исправляет на узбекский
+      const fixRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [{
+            role: 'user',
+            content: `Bu matn audio transkripsiya natijasi. Matn o'zbek tilida gapirilib, lekin Whisper uni boshqa tilda (qozoq, ozarbayjon, turk yoki boshqa) transkripsiya qilgan.
+
+Quyidagi qoidalarga amal qil:
+1. Matnni to'liq o'zbek tiliga o'tkazib yoz
+2. Har bir so'zni o'zbek tilining to'g'ri shakliga keltir
+3. Grammatika va imlosini tuzat
+4. Matnning umumiy mazmunini saqlagan holda o'zbek tiliga moslash
+5. FAQAT tuzatilgan o'zbek tilidagi matnni yoz — boshqa hech narsa yozma
+
+Matn:
+${rawText}`
+          }]
+        })
+      });
+
+      if (!fixRes.ok) return rawText;
+      const fixData = await fixRes.json();
+      return fixData.content[0].text.trim() || rawText;
 
     } catch(e) {
-      console.log('Transcribe error:', e.message);
       return null;
     }
   }
 
   try {
-    console.log('Processing', reels.length, 'reels');
-
     const transcriptResults = await Promise.all(reels.map(async (reel, idx) => {
       if (!reel) return { shortCode:'',url:'',caption:'',likes:0,comments:0,date:'?',transcript:'(mavjud emas)' };
-      console.log('Reel', idx+1, '- videoUrl:', reel.videoUrl ? 'YES' : 'NO');
       const transcript = reel.videoUrl ? await transcribeReel(reel) : null;
       return {
         shortCode: reel.shortCode || '',
@@ -72,8 +105,6 @@ export default async function handler(req, res) {
     }));
 
     const transcribedCount = transcriptResults.filter(r => r.transcript !== '(mavjud emas)').length;
-    console.log('Transcribed:', transcribedCount, '/', reels.length);
-
     const avgLikes = Math.round(reels.filter(r=>r).reduce((s,r) => s+(r.likesCount||0), 0) / reels.length);
 
     const reelsForClaude = transcriptResults.map((r,i) =>
@@ -165,8 +196,7 @@ FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
     let analysis;
     try {
       analysis = JSON.parse(analysisText);
-    } catch(parseErr) {
-      console.log('JSON parse error:', analysisText.slice(0, 200));
+    } catch(e) {
       analysis = {
         funnel: { tof: 60, mof: 30, bof: 10, verdict: 'Tahlil qilinmoqda...', niche: '—', niche_avg_er: '—' },
         missed_leads: { count: 0, explanation: '—' },
@@ -185,7 +215,6 @@ FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
     });
 
   } catch(e) {
-    console.log('ERROR:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
