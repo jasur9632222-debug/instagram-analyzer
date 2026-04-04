@@ -112,6 +112,9 @@ input::placeholder{color:#333;}
 .video-detail{display:none;border-top:1px solid var(--border);padding:24px;}
 .video-detail.open{display:block;animation:fadeIn .3s ease;}
 .detail-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;}
+.transcript-box{background:#0a1a0a;border:1px solid #1a3a1a;border-radius:2px;padding:16px;margin-bottom:16px;}
+.transcript-box-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--success);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;}
+.transcript-box-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaccaa;line-height:1.8;}
 .sentence-item{background:var(--bg);border-radius:2px;padding:16px;margin-bottom:12px;}
 .sentence-original{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#888;text-decoration:line-through;margin-bottom:6px;}
 .sentence-problem{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);margin-bottom:6px;}
@@ -258,20 +261,22 @@ async function downloadPDF(){
       #report .report-hero{background:#f5f5f5!important;border-color:#333!important;}
       #report .report-summary,#report .rec-text,#report .funnel-ideal,#report .missed-exp,#report .sentence-why{color:#444!important;}
       #report .stat-card,#report .funnel-section,#report .recs-section,#report .video-card{background:#f5f5f5!important;border-color:#ddd!important;}
-      #report .stat-val,#report .report-username span,#report .funnel-pct,#report .rec-num,#report .section-title,#report .label,#report .picker-title{color:#1a6600!important;}
-      #report .stat-lbl,#report .score-label,#report .expand-btn,#report .metric,#report .reel-stats,#report .reel-date{color:#666!important;}
+      #report .stat-val,#report .report-username span,#report .funnel-pct,#report .rec-num,#report .section-title,#report .label{color:#1a6600!important;}
+      #report .stat-lbl,#report .score-label,#report .expand-btn,#report .metric{color:#666!important;}
       #report .missed-leads{background:#fff3f0!important;border-color:#ff6b35!important;}
       #report .missed-number{color:#cc3300!important;}
       #report .missed-label{color:#666!important;}
       #report .funnel-verdict{background:#f0f5f0!important;border-color:#ccc!important;color:#444!important;}
       #report .hook-analysis{background:#f0f0f8!important;border-color:#ccc!important;color:#444!important;}
+      #report .transcript-box{background:#f0f8f0!important;border-color:#aaccaa!important;}
+      #report .transcript-box-label{color:#1a6600!important;}
+      #report .transcript-box-text{color:#336633!important;}
       #report .sentence-item{background:#f8f8f8!important;}
       #report .sentence-original{color:#999!important;}
       #report .sentence-fix{color:#1a6600!important;}
       #report .sentence-problem{color:#cc3300!important;}
       #report .outcome-box{background:#f0f5f0!important;border-color:#aaccaa!important;color:#336633!important;}
       #report .performance-gap{background:#fff8f0!important;color:#cc3300!important;}
-      #report .video-detail{background:#fafafa!important;}
       #report .score-bar-wrap,#report .funnel-bar-wrap{background:#e0e0e0!important;}
       #report .rec-item{border-color:#ddd!important;}
       #report .report-username{color:#111!important;}
@@ -300,11 +305,9 @@ async function downloadPDF(){
       var sy=i*(pageH-margin*2)*canvas.width/imgW;
       var sh=Math.min((pageH-margin*2)*canvas.width/imgW,canvas.height-sy);
       var sc=document.createElement('canvas');
-      sc.width=canvas.width;
-      sc.height=sh;
+      sc.width=canvas.width;sc.height=sh;
       var sctx=sc.getContext('2d');
-      sctx.fillStyle='#ffffff';
-      sctx.fillRect(0,0,sc.width,sc.height);
+      sctx.fillStyle='#ffffff';sctx.fillRect(0,0,sc.width,sc.height);
       sctx.drawImage(canvas,0,sy,canvas.width,sh,0,0,canvas.width,sh);
       pdf.addImage(sc.toDataURL('image/jpeg',0.92),'JPEG',margin,margin,imgW,sh*imgW/canvas.width);
     }
@@ -324,15 +327,18 @@ function renderReelsReport(data){
   var report=document.getElementById('report');
   report.className='visible';
   var html='';
+
   html+='<div class="report-hero"><div class="label">// hisobot · '+new Date().toLocaleDateString('ru')+'</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
   if(a.executive_summary)html+='<div class="report-summary">'+esc(a.executive_summary)+'</div>';
   html+='</div>';
+
   html+='<div class="stats-grid">';
   html+='<div class="stat-card"><div class="stat-val">'+data.totalSelected+'</div><div class="stat-lbl">Reels tahlil</div></div>';
   html+='<div class="stat-card"><div class="stat-val">'+data.transcribedCount+'</div><div class="stat-lbl">Transkripsiya</div></div>';
   html+='<div class="stat-card"><div class="stat-val">'+(data.avgLikes||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>';
   if(a.funnel)html+='<div class="stat-card"><div class="stat-val">'+esc(a.funnel.niche_avg_er||'—')+'</div><div class="stat-lbl">Nisha ER</div></div>';
   html+='</div>';
+
   if(a.funnel){
     html+='<div class="funnel-section"><div class="section-title">// TOF / MOF / BOF — kontent voronkasi</div>';
     html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Voronka — auditoriyani notanishdan mijozga aylantirish yo\'li. <strong style="color:#ccc">TOF 60%</strong> yangi auditoriya. <strong style="color:#ccc">MOF 30%</strong> ishonch. <strong style="color:#ccc">BOF 10%</strong> sotuv.</div>';
@@ -348,12 +354,14 @@ function renderReelsReport(data){
     if(a.funnel.verdict)html+='<div class="funnel-verdict">'+esc(a.funnel.verdict)+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
     html+='</div>';
   }
+
   if(a.missed_leads){
     html+='<div class="missed-leads"><div class="label">// yo\'qotilgan imkoniyatlar</div>';
     html+='<div class="missed-number">~'+a.missed_leads.count+'</div>';
     html+='<div class="missed-label">potentsial so\'rovlar yo\'qotildi</div>';
     html+='<div class="missed-exp">'+esc(a.missed_leads.explanation||'')+'</div></div>';
   }
+
   if(a.videos&&a.videos.length){
     html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">// har bir reel tahlili</div>';
     a.videos.forEach(function(v,i){
@@ -369,9 +377,20 @@ function renderReelsReport(data){
       html+='<div class="score-row"><div class="score-label">Viral</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+scoreColor(v.viral_potential||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.viral_potential||5)+'">'+(v.viral_potential||5)+'/10</div></div>';
       html+='</div></div>';
       if(v.performance_gap)html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
+
       html+='<div class="video-detail" id="vd-'+i+'">';
+
+      // Транскрипция текст
+      if(tr.transcript&&tr.transcript!=='(mavjud emas)'){
+        html+='<div class="transcript-box">';
+        html+='<div class="transcript-box-label">// transkripsiya matni</div>';
+        html+='<div class="transcript-box-text">'+esc(tr.transcript)+'</div>';
+        html+='</div>';
+      }
+
       if(v.emotional_trigger)html+='<span class="emotional-trigger">🧠 '+esc(v.emotional_trigger)+'</span>';
       if(v.hook_analysis)html+='<div class="hook-analysis">🎣 '+esc(v.hook_analysis)+'</div>';
+
       if(v.deep_analysis&&v.deep_analysis.sentences&&v.deep_analysis.sentences.length){
         html+='<div class="detail-title">// ssenariy tahlili</div>';
         v.deep_analysis.sentences.forEach(function(s){
@@ -384,12 +403,15 @@ function renderReelsReport(data){
       html+='</div></div>';
     });
   }
+
   if(a.top_recommendations&&a.top_recommendations.length){
     html+='<div class="recs-section"><div class="section-title">// tavsiyalar</div>';
     a.top_recommendations.forEach(function(r,i){html+='<div class="rec-item"><div class="rec-num">0'+(i+1)+'</div><div class="rec-text">'+esc(r)+'</div></div>';});
     html+='</div>';
   }
+
   html+='<div class="btn-row"><button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button><button class="dl-btn" onclick="downloadTxt()">↓ .txt</button><button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button></div>';
+
   report.innerHTML=html;
   window._reportData=data;
   setTimeout(function(){if(a.funnel)renderFunnelChart(a.funnel);},100);
@@ -410,6 +432,7 @@ function buildTxt(d){
     t+='EXECUTIVE SUMMARY:\n'+(d.analysis.executive_summary||'')+'\n\n';
     if(d.analysis.funnel)t+='VORONKA: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';
     if(d.analysis.missed_leads)t+='YO\'QOTILGAN: ~'+d.analysis.missed_leads.count+'\n\n';
+    if(d.transcripts)d.transcripts.forEach(function(tr,i){t+='REEL '+(i+1)+' TRANSKRIPSIYA:\n'+(tr.transcript||'—')+'\n\n';});
     if(d.analysis.videos)d.analysis.videos.forEach(function(v,i){t+='REEL '+(i+1)+' ['+v.funnel_type+']\nHuk: '+v.hook_score+'/10 | Viral: '+v.viral_potential+'/10\n'+(v.performance_gap||'')+'\n\n';});
     if(d.analysis.top_recommendations)d.analysis.top_recommendations.forEach(function(r,i){t+=(i+1)+'. '+r+'\n';});
   }
