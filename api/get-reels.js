@@ -39,18 +39,38 @@ export default async function handler(req, res) {
     const dataRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=${limit}`);
     const posts = await dataRes.json();
 
-    const reels = posts.filter(p => p.videoUrl || p.type === 'Video' || p.isVideo).map(p => ({
-      shortCode: p.shortCode,
-      url: p.url || `https://www.instagram.com/p/${p.shortCode}/`,
-      caption: (p.caption || '').slice(0, 200),
-      likesCount: p.likesCount || 0,
-      commentsCount: p.commentsCount || 0,
-      timestamp: p.timestamp,
-      videoUrl: p.videoUrl
-    }));
+    console.log('Total posts:', posts.length);
+
+    // Логируем все поля первого поста для анализа
+    if (posts[0]) {
+      console.log('ALL KEYS:', Object.keys(posts[0]).join(', '));
+      console.log('subtitleUrls:', JSON.stringify(posts[0].subtitleUrls));
+      console.log('captions:', JSON.stringify(posts[0].captions));
+      console.log('accessibilityCaption:', JSON.stringify(posts[0].accessibilityCaption));
+      console.log('videoUrl:', posts[0].videoUrl ? 'YES' : 'NO');
+      console.log('type:', posts[0].type);
+    }
+
+    const reels = posts
+      .filter(p => p && (p.videoUrl || p.type === 'Video' || p.isVideo))
+      .map(p => ({
+        shortCode: p.shortCode || '',
+        url: p.url || ('https://www.instagram.com/p/' + (p.shortCode || '')),
+        caption: (p.caption || '').slice(0, 200),
+        likesCount: p.likesCount || 0,
+        commentsCount: p.commentsCount || 0,
+        timestamp: p.timestamp || null,
+        videoUrl: p.videoUrl || null,
+        subtitleUrls: p.subtitleUrls || null,
+        accessibilityCaption: p.accessibilityCaption || null
+      }))
+      .filter(r => r.shortCode);
+
+    console.log('Reels found:', reels.length);
 
     return res.status(200).json({ reels });
   } catch(e) {
+    console.log('ERROR:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
