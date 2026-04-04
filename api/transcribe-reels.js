@@ -13,14 +13,25 @@ export default async function handler(req, res) {
   async function transcribeReel(reel) {
     try {
       const videoUrl = reel.videoUrl;
+      console.log('videoUrl:', videoUrl ? 'YES' : 'NO');
       if (!videoUrl) return null;
+
       const videoRes = await fetch(videoUrl);
+      console.log('video fetch status:', videoRes.status);
       if (!videoRes.ok) return null;
+
       const videoBuffer = await videoRes.arrayBuffer();
+      console.log('video size:', videoBuffer.byteLength);
       if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
+
       const uint8Array = new Uint8Array(videoBuffer);
       const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
-      const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
+      const beforeFile = '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n' +
+        '--' + boundary + '\r\n' +
+        'Content-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
       const afterFile = '\r\n--' + boundary + '--\r\n';
       const beforeBytes = new TextEncoder().encode(beforeFile);
       const afterBytes = new TextEncoder().encode(afterFile);
@@ -28,13 +39,25 @@ export default async function handler(req, res) {
       body.set(beforeBytes, 0);
       body.set(uint8Array, beforeBytes.length);
       body.set(afterBytes, beforeBytes.length + uint8Array.length);
+
       const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+        headers: {
+          'Authorization': 'Bearer ' + GROQ_KEY,
+          'Content-Type': 'multipart/form-data; boundary=' + boundary
+        },
         body: body
       });
-      if (!groqRes.ok) return null;
+
+      console.log('groq status:', groqRes.status);
+      if (!groqRes.ok) {
+        const err = await groqRes.text();
+        console.log('groq error:', err);
+        return null;
+      }
+
       const rawText = await groqRes.text();
+      console.log('raw transcript length:', rawText ? rawText.length : 0);
       if (!rawText || rawText.length < 5) return null;
 
       // Постобработка через Claude — исправляем на узбекский
@@ -50,27 +73,28 @@ export default async function handler(req, res) {
           max_tokens: 2000,
           messages: [{
             role: 'user',
-            content: `Quyidagi matn ovozni matnga o'tkazish natijasi. Matn o'zbek tilida aytilgan lekin boshqa tilda (qozoq, ozarbayjon yoki boshqa turkiy til) transkripsiya qilingan bo'lishi mumkin.
-
-Vazifang: Bu matnni to'g'ri o'zbek tilida yoz. So'zlarni o'zbek tiliga to'g'irla, grammatikani tuzat. Faqat matnni qaytар, hech qanday tushuntirish yo'q.
-
-Matn:
-${rawText}`
+            content: 'Quyidagi matn ovozni matnga o\'tkazish natijasi. O\'zbek tilida aytilgan lekin boshqa tilda transkripsiya qilingan bo\'lishi mumkin.\n\nVazifang: Bu matnni to\'g\'ri o\'zbek tilida yoz. So\'zlarni to\'g\'irla, grammatikani tuzat. Faqat matnni qaytар, hech qanday tushuntirish yo\'q.\n\nMatn:\n' + rawText
           }]
         })
       });
 
       if (!fixRes.ok) return rawText;
       const fixData = await fixRes.json();
-      return fixData.content[0].text || rawText;
+      const fixedText = fixData.content[0].text;
+      console.log('fixed transcript length:', fixedText ? fixedText.length : 0);
+      return fixedText || rawText;
+
     } catch(e) {
-      console.log('Transcribe error:', e.message);
+      console.log('transcribe error:', e.message);
       return null;
     }
   }
 
   try {
-    const transcriptResults = await Promise.all(reels.map(async (reel) => {
+    console.log('total reels:', reels.length);
+
+    const transcriptResults = await Promise.all(reels.map(async (reel, idx) => {
+      console.log('processing reel', idx + 1, 'videoUrl:', reel.videoUrl ? reel.videoUrl.slice(0, 50) : 'NONE');
       const transcript = await transcribeReel(reel);
       return {
         shortCode: reel.shortCode,
@@ -84,6 +108,8 @@ ${rawText}`
     }));
 
     const transcribedCount = transcriptResults.filter(r => r.transcript !== '(mavjud emas)').length;
+    console.log('transcribed:', transcribedCount, '/', reels.length);
+
     const avgLikes = Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length);
 
     const reelsForClaude = transcriptResults.map((r, i) =>
