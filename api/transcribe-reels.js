@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { username, reels } = req.body;
-  const GOOGLE_KEY = process.env.GOOGLE_SPEECH_KEY;
+  const GROQ_KEY = process.env.GROQ_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
   if (!reels || !reels.length) return res.status(400).json({ error: 'Reels not provided' });
@@ -14,60 +14,55 @@ export default async function handler(req, res) {
     try {
       const videoUrl = reel.videoUrl;
       if (!videoUrl) return null;
-
-      // Скачиваем видео
       const videoRes = await fetch(videoUrl);
       if (!videoRes.ok) return null;
       const videoBuffer = await videoRes.arrayBuffer();
       if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
-
-      // Конвертируем в base64
       const uint8Array = new Uint8Array(videoBuffer);
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        binary += String.fromCharCode(...uint8Array.subarray(i, i + chunkSize));
-      }
-      const base64Audio = btoa(binary);
+      const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
+      const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
+      const afterFile = '\r\n--' + boundary + '--\r\n';
+      const beforeBytes = new TextEncoder().encode(beforeFile);
+      const afterBytes = new TextEncoder().encode(afterFile);
+      const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);
+      body.set(beforeBytes, 0);
+      body.set(uint8Array, beforeBytes.length);
+      body.set(afterBytes, beforeBytes.length + uint8Array.length);
+      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+        body: body
+      });
+      if (!groqRes.ok) return null;
+      const rawText = await groqRes.text();
+      if (!rawText || rawText.length < 5) return null;
 
-      // Отправляем в Google Speech-to-Text
-      const googleRes = await fetch(
-        `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            config: {
-              encoding: 'MP4',
-              sampleRateHertz: 16000,
-              languageCode: 'uz-UZ',
-              alternativeLanguageCodes: ['ru-RU'],
-              enableAutomaticPunctuation: true,
-              model: 'latest_long',
-              useEnhanced: true
-            },
-            audio: {
-              content: base64Audio
-            }
-          })
-        }
-      );
+      // Постобработка через Claude — исправляем на узбекский
+      const fixRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [{
+            role: 'user',
+            content: `Quyidagi matn ovozni matnga o'tkazish natijasi. Matn o'zbek tilida aytilgan lekin boshqa tilda (qozoq, ozarbayjon yoki boshqa turkiy til) transkripsiya qilingan bo'lishi mumkin.
 
-      console.log('Google Speech status:', googleRes.status);
+Vazifang: Bu matnni to'g'ri o'zbek tilida yoz. So'zlarni o'zbek tiliga to'g'irla, grammatikani tuzat. Faqat matnni qaytар, hech qanday tushuntirish yo'q.
 
-      if (!googleRes.ok) {
-        const err = await googleRes.text();
-        console.log('Google Speech error:', err);
-        return null;
-      }
+Matn:
+${rawText}`
+          }]
+        })
+      });
 
-      const googleData = await googleRes.json();
-      const transcript = googleData.results
-        ? googleData.results.map(r => r.alternatives[0].transcript).join(' ')
-        : null;
-
-      console.log('Transcript length:', transcript ? transcript.length : 0);
-      return transcript || null;
+      if (!fixRes.ok) return rawText;
+      const fixData = await fixRes.json();
+      return fixData.content[0].text || rawText;
     } catch(e) {
       console.log('Transcribe error:', e.message);
       return null;
@@ -130,7 +125,7 @@ FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
       "emotional_trigger": "<qaysi hissiyotni ishlatadi O'zbek tilida>",
       "actual_likes": <son>,
       "expected_likes": <nechta bo'lishi kerak edi>,
-      "performance_gap": "<nima uchun ko'p to'planmadi — 2-3 sabab O'zbek tilida>",
+      "performance_gap": "<nima uchun ko'p to'planmadi O'zbek tilida>",
       "viral_potential": <1 dan 10 gacha son>,
       "summary": "<video haqida qisqacha xulosa O'zbek tilida>",
       "deep_analysis": {
