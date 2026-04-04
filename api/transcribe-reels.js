@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { username, reels } = req.body;
-  const GROQ_KEY = process.env.GROQ_KEY;
+  const GOOGLE_KEY = process.env.GOOGLE_SPEECH_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
   if (!reels || !reels.length) return res.status(400).json({ error: 'Reels not provided' });
@@ -14,28 +14,64 @@ export default async function handler(req, res) {
     try {
       const videoUrl = reel.videoUrl;
       if (!videoUrl) return null;
+
+      // Скачиваем видео
       const videoRes = await fetch(videoUrl);
       if (!videoRes.ok) return null;
       const videoBuffer = await videoRes.arrayBuffer();
       if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
+
+      // Конвертируем в base64
       const uint8Array = new Uint8Array(videoBuffer);
-      const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
-      const beforeFile = '--' + boundary + '\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="language"\r\n\r\nuz\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
-      const afterFile = '\r\n--' + boundary + '--\r\n';
-      const beforeBytes = new TextEncoder().encode(beforeFile);
-      const afterBytes = new TextEncoder().encode(afterFile);
-      const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);
-      body.set(beforeBytes, 0);
-      body.set(uint8Array, beforeBytes.length);
-      body.set(afterBytes, beforeBytes.length + uint8Array.length);
-      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'multipart/form-data; boundary=' + boundary },
-        body: body
-      });
-      if (!groqRes.ok) return null;
-      return await groqRes.text() || null;
-    } catch(e) { return null; }
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        binary += String.fromCharCode(...uint8Array.subarray(i, i + chunkSize));
+      }
+      const base64Audio = btoa(binary);
+
+      // Отправляем в Google Speech-to-Text
+      const googleRes = await fetch(
+        `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            config: {
+              encoding: 'MP4',
+              sampleRateHertz: 16000,
+              languageCode: 'uz-UZ',
+              alternativeLanguageCodes: ['ru-RU'],
+              enableAutomaticPunctuation: true,
+              model: 'latest_long',
+              useEnhanced: true
+            },
+            audio: {
+              content: base64Audio
+            }
+          })
+        }
+      );
+
+      console.log('Google Speech status:', googleRes.status);
+
+      if (!googleRes.ok) {
+        const err = await googleRes.text();
+        console.log('Google Speech error:', err);
+        return null;
+      }
+
+      const googleData = await googleRes.json();
+      const transcript = googleData.results
+        ? googleData.results.map(r => r.alternatives[0].transcript).join(' ')
+        : null;
+
+      console.log('Transcript length:', transcript ? transcript.length : 0);
+      return transcript || null;
+    } catch(e) {
+      console.log('Transcribe error:', e.message);
+      return null;
+    }
   }
 
   try {
