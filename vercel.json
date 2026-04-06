@@ -1,7 +1,16 @@
 {
   "functions": {
     "api/analyze.js": {
-      "maxDuration": 120
+      "maxDuration": 300
+    },
+    "api/report.js": {
+      "maxDuration": 300
+    },
+    "api/get-reels.js": {
+      "maxDuration": 300
+    },
+    "api/transcribe-reels.js": {
+      "maxDuration": 300
     }
   }
 }
