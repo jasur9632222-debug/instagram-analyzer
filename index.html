@@ -70,9 +70,9 @@ input::placeholder{color:#333;}
 .report-username{font-size:36px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px;}
 .report-username span{color:var(--accent);}
 .report-summary{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ccc;line-height:1.8;margin-top:12px;}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:20px;}
-.stat-val{font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-.02em;}
+.stat-val{font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-.02em;}
 .stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.1em;}
 .funnel-section{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
 .section-title{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border);}
@@ -129,6 +129,7 @@ input::placeholder{color:#333;}
 .rec-item:last-child{border-bottom:none;}
 .rec-num{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:800;color:var(--accent);flex-shrink:0;width:32px;}
 .rec-text{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ccc;line-height:1.8;}
+.analysis-text{font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.9;color:#ccc;white-space:pre-wrap;}
 .btn-row{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
 .copy-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px 18px;cursor:pointer;border-radius:2px;}
 .copy-btn:hover{border-color:var(--accent);color:var(--accent);}
@@ -259,7 +260,7 @@ async function downloadPDF(){
     style.textContent=`
       #report{background:#fff!important;color:#111!important;padding:32px!important;}
       #report .report-hero{background:#f5f5f5!important;border-color:#333!important;}
-      #report .report-summary,#report .rec-text,#report .funnel-ideal,#report .missed-exp,#report .sentence-why{color:#444!important;}
+      #report .report-summary,#report .rec-text,#report .funnel-ideal,#report .missed-exp,#report .sentence-why,#report .analysis-text{color:#444!important;}
       #report .stat-card,#report .funnel-section,#report .recs-section,#report .video-card{background:#f5f5f5!important;border-color:#ddd!important;}
       #report .stat-val,#report .report-username span,#report .funnel-pct,#report .rec-num,#report .section-title,#report .label{color:#1a6600!important;}
       #report .stat-lbl,#report .score-label,#report .expand-btn,#report .metric{color:#666!important;}
@@ -298,8 +299,7 @@ async function downloadPDF(){
     var pageH=pdf.internal.pageSize.getHeight();
     var margin=10;
     var imgW=pageW-margin*2;
-    var imgH=canvas.height*imgW/canvas.width;
-    var totalPages=Math.ceil(imgH/(pageH-margin*2));
+    var totalPages=Math.ceil((canvas.height*imgW/canvas.width)/(pageH-margin*2));
     for(var i=0;i<totalPages;i++){
       if(i>0)pdf.addPage();
       var sy=i*(pageH-margin*2)*canvas.width/imgW;
@@ -320,123 +320,6 @@ async function downloadPDF(){
   }
   btn.textContent='↓ PDF yuklab olish';
   btn.disabled=false;
-}
-
-function renderReelsReport(data){
-  var a=data.analysis;
-  var report=document.getElementById('report');
-  report.className='visible';
-  var html='';
-
-  html+='<div class="report-hero"><div class="label">// hisobot · '+new Date().toLocaleDateString('ru')+'</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
-  if(a.executive_summary)html+='<div class="report-summary">'+esc(a.executive_summary)+'</div>';
-  html+='</div>';
-
-  html+='<div class="stats-grid">';
-  html+='<div class="stat-card"><div class="stat-val">'+data.totalSelected+'</div><div class="stat-lbl">Reels tahlil</div></div>';
-  html+='<div class="stat-card"><div class="stat-val">'+data.transcribedCount+'</div><div class="stat-lbl">Transkripsiya</div></div>';
-  html+='<div class="stat-card"><div class="stat-val">'+(data.avgLikes||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>';
-  if(a.funnel)html+='<div class="stat-card"><div class="stat-val">'+esc(a.funnel.niche_avg_er||'—')+'</div><div class="stat-lbl">Nisha ER</div></div>';
-  html+='</div>';
-
-  if(a.funnel){
-    html+='<div class="funnel-section"><div class="section-title">// TOF / MOF / BOF — kontent voronkasi</div>';
-    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Voronka — auditoriyani notanishdan mijozga aylantirish yo\'li. <strong style="color:#ccc">TOF 60%</strong> yangi auditoriya. <strong style="color:#ccc">MOF 30%</strong> ishonch. <strong style="color:#ccc">BOF 10%</strong> sotuv.</div>';
-    html+='<div class="funnel-grid"><div class="funnel-chart-wrap"><canvas id="funnelChart" width="200" height="200"></canvas></div>';
-    html+='<div class="funnel-legend">';
-    [{key:'tof',label:'TOF',color:'var(--tof)',ideal:60},{key:'mof',label:'MOF',color:'var(--mof)',ideal:30},{key:'bof',label:'BOF',color:'var(--bof)',ideal:10}].forEach(function(item){
-      var val=a.funnel[item.key]||0;var diff=val-item.ideal;
-      html+='<div class="funnel-item"><div class="funnel-label"><span class="funnel-name" style="color:'+item.color+'">'+item.label+'</span><span class="funnel-pct">'+val+'%</span></div>';
-      html+='<div class="funnel-bar-wrap"><div class="funnel-bar" style="width:'+val+'%;background:'+item.color+'"></div></div>';
-      html+='<div class="funnel-ideal">Ideal: '+item.ideal+'% <span style="color:'+(Math.abs(diff)<=10?'var(--success)':'var(--accent2)')+';">'+(diff>0?'+':'')+diff+'%</span></div></div>';
-    });
-    html+='</div></div>';
-    if(a.funnel.verdict)html+='<div class="funnel-verdict">'+esc(a.funnel.verdict)+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
-    html+='</div>';
-  }
-
-  if(a.missed_leads){
-    html+='<div class="missed-leads"><div class="label">// yo\'qotilgan imkoniyatlar</div>';
-    html+='<div class="missed-number">~'+a.missed_leads.count+'</div>';
-    html+='<div class="missed-label">potentsial so\'rovlar yo\'qotildi</div>';
-    html+='<div class="missed-exp">'+esc(a.missed_leads.explanation||'')+'</div></div>';
-  }
-
-  if(a.videos&&a.videos.length){
-    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">// har bir reel tahlili</div>';
-    a.videos.forEach(function(v,i){
-      var tr=data.transcripts[i]||{};
-      html+='<div class="video-card"><div class="video-card-header" onclick="toggleDetail('+i+')">';
-      html+='<span class="video-badge '+badgeClass(v.funnel_type||'TOF')+'">'+esc(v.funnel_type||'?')+'</span>';
-      html+='<div><div class="video-caption">'+esc((tr.caption||v.summary||'').slice(0,100))+'</div>';
-      html+='<div class="video-metrics"><div class="metric">❤️ <span>'+(tr.likes||v.actual_likes||0).toLocaleString('ru')+'</span></div><div class="metric">💬 <span>'+(tr.comments||0)+'</span></div>';
-      if(v.expected_likes)html+='<div class="metric">🎯 <span style="color:'+(v.expected_likes>(v.actual_likes||0)?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+' kutilgan</span></div>';
-      html+='</div><div class="expand-btn" id="eb-'+i+'">▼ Batafsil tahlil</div></div>';
-      html+='<div class="video-scores">';
-      html+='<div class="score-row"><div class="score-label">Huk</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+scoreColor(v.hook_score||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.hook_score||5)+'">'+(v.hook_score||5)+'/10</div></div>';
-      html+='<div class="score-row"><div class="score-label">Viral</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+scoreColor(v.viral_potential||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.viral_potential||5)+'">'+(v.viral_potential||5)+'/10</div></div>';
-      html+='</div></div>';
-      if(v.performance_gap)html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
-
-      html+='<div class="video-detail" id="vd-'+i+'">';
-
-      // Транскрипция текст
-      if(tr.transcript&&tr.transcript!=='(mavjud emas)'){
-        html+='<div class="transcript-box">';
-        html+='<div class="transcript-box-label">// transkripsiya matni</div>';
-        html+='<div class="transcript-box-text">'+esc(tr.transcript)+'</div>';
-        html+='</div>';
-      }
-
-      if(v.emotional_trigger)html+='<span class="emotional-trigger">🧠 '+esc(v.emotional_trigger)+'</span>';
-      if(v.hook_analysis)html+='<div class="hook-analysis">🎣 '+esc(v.hook_analysis)+'</div>';
-
-      if(v.deep_analysis&&v.deep_analysis.sentences&&v.deep_analysis.sentences.length){
-        html+='<div class="detail-title">// ssenariy tahlili</div>';
-        v.deep_analysis.sentences.forEach(function(s){
-          html+='<div class="sentence-item"><div class="sentence-original">❌ '+esc(s.original||'')+'</div><div class="sentence-problem">Muammo: '+esc(s.problem||'')+'</div><div class="sentence-fix">✅ '+esc(s.fix||'')+'</div><div class="sentence-why">'+esc(s.why_fix_works||'')+'</div>';
-          if(s.trigger)html+='<span class="sentence-trigger">'+esc(s.trigger)+'</span>';
-          html+='</div>';
-        });
-      }
-      if(v.deep_analysis&&v.deep_analysis.outcome)html+='<div class="outcome-box">🚀 '+esc(v.deep_analysis.outcome)+'</div>';
-      html+='</div></div>';
-    });
-  }
-
-  if(a.top_recommendations&&a.top_recommendations.length){
-    html+='<div class="recs-section"><div class="section-title">// tavsiyalar</div>';
-    a.top_recommendations.forEach(function(r,i){html+='<div class="rec-item"><div class="rec-num">0'+(i+1)+'</div><div class="rec-text">'+esc(r)+'</div></div>';});
-    html+='</div>';
-  }
-
-  html+='<div class="btn-row"><button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button><button class="dl-btn" onclick="downloadTxt()">↓ .txt</button><button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button></div>';
-
-  report.innerHTML=html;
-  window._reportData=data;
-  setTimeout(function(){if(a.funnel)renderFunnelChart(a.funnel);},100);
-  report.scrollIntoView({behavior:'smooth'});
-}
-
-function toggleDetail(i){
-  var vd=document.getElementById('vd-'+i);var eb=document.getElementById('eb-'+i);
-  if(vd.classList.contains('open')){vd.classList.remove('open');eb.textContent='▼ Batafsil tahlil';}
-  else{vd.classList.add('open');eb.textContent='▲ Yopish';}
-}
-
-function copyTxt(){if(window._reportData)navigator.clipboard.writeText(buildTxt(window._reportData));}
-function downloadTxt(){if(window._reportData)dlFile(buildTxt(window._reportData),'report_'+(window._reportData.username||'ig')+'.txt');}
-function buildTxt(d){
-  var t='@'+(d.username||'')+' — Reels Report\n'+'='.repeat(60)+'\n\n';
-  if(d.analysis){
-    t+='EXECUTIVE SUMMARY:\n'+(d.analysis.executive_summary||'')+'\n\n';
-    if(d.analysis.funnel)t+='VORONKA: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';
-    if(d.analysis.missed_leads)t+='YO\'QOTILGAN: ~'+d.analysis.missed_leads.count+'\n\n';
-    if(d.transcripts)d.transcripts.forEach(function(tr,i){t+='REEL '+(i+1)+' TRANSKRIPSIYA:\n'+(tr.transcript||'—')+'\n\n';});
-    if(d.analysis.videos)d.analysis.videos.forEach(function(v,i){t+='REEL '+(i+1)+' ['+v.funnel_type+']\nHuk: '+v.hook_score+'/10 | Viral: '+v.viral_potential+'/10\n'+(v.performance_gap||'')+'\n\n';});
-    if(d.analysis.top_recommendations)d.analysis.top_recommendations.forEach(function(r,i){t+=(i+1)+'. '+r+'\n';});
-  }
-  return t;
 }
 
 async function startAnalysis(){
@@ -472,21 +355,150 @@ async function startAnalysis(){
     if(!data)throw new Error('Timeout');
     setStep('s2','done','✓');setStep('s3','done','✓');setStep('s4','done','✓');
     setProgress(100);
+
+    var followersVal=data.followers!==undefined&&data.followers!=='?'?(typeof data.followers==='number'?data.followers.toLocaleString('ru'):data.followers):'—';
+    var erVal=data.erRate&&data.erRate!=='?'?data.erRate+'%':'—';
+
     var report=document.getElementById('report');
     report.className='visible';
-    report.innerHTML='<div class="report-hero"><div class="label">// postlar tahlili</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div></div>'+
-    '<div class="stats-grid">'+
-    '<div class="stat-card"><div class="stat-val">'+(typeof data.followers==='number'?data.followers.toLocaleString('ru'):data.followers)+'</div><div class="stat-lbl">Followers</div></div>'+
-    '<div class="stat-card"><div class="stat-val">'+data.avgLikes.toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>'+
-    '<div class="stat-card"><div class="stat-val">'+data.erRate+'%</div><div class="stat-lbl">ER Rate</div></div>'+
-    '<div class="stat-card"><div class="stat-val">'+data.postsCount+'</div><div class="stat-lbl">Postlar</div></div>'+
-    '</div>'+
-    '<div class="recs-section"><div class="section-title">// tahlil · claude ai</div><div style="font-family:\'IBM Plex Mono\',monospace;font-size:13px;line-height:1.9;color:#ccc;white-space:pre-wrap;">'+esc(data.analysis)+'</div></div>'+
-    '<div class="btn-row"><button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button><button class="dl-btn" onclick="downloadTxt()">↓ .txt</button><button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button></div>';
+    report.innerHTML=
+      '<div class="report-hero">'+
+        '<div class="label">// postlar tahlili · '+new Date().toLocaleDateString('ru')+'</div>'+
+        '<div class="report-username"><span>@</span>'+esc(data.username)+'</div>'+
+      '</div>'+
+      '<div class="stats-grid">'+
+        '<div class="stat-card"><div class="stat-val">'+followersVal+'</div><div class="stat-lbl">Followers</div></div>'+
+        '<div class="stat-card"><div class="stat-val">'+(data.avgLikes||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>'+
+        '<div class="stat-card"><div class="stat-val">'+erVal+'</div><div class="stat-lbl">ER Rate</div></div>'+
+        '<div class="stat-card"><div class="stat-val">'+(data.postsCount||0)+'</div><div class="stat-lbl">Postlar</div></div>'+
+        '<div class="stat-card"><div class="stat-val">'+(data.avgComments||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. izoh</div></div>'+
+        '<div class="stat-card"><div class="stat-val">'+(data.videoCount||0)+'</div><div class="stat-lbl">Video</div></div>'+
+      '</div>'+
+      '<div class="recs-section">'+
+        '<div class="section-title">// tahlil · claude ai</div>'+
+        '<div class="analysis-text">'+esc(data.analysis)+'</div>'+
+      '</div>'+
+      '<div class="btn-row">'+
+        '<button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button>'+
+        '<button class="dl-btn" onclick="downloadTxt()">↓ .txt</button>'+
+        '<button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button>'+
+      '</div>';
     window._reportData=data;
     report.scrollIntoView({behavior:'smooth'});
   }catch(e){showError(e.message);}
   document.getElementById('analyzeBtn').disabled=false;
+}
+
+function renderReelsReport(data){
+  var a=data.analysis;
+  var report=document.getElementById('report');
+  report.className='visible';
+  var html='';
+
+  html+='<div class="report-hero"><div class="label">// hisobot · '+new Date().toLocaleDateString('ru')+'</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
+  if(a.executive_summary)html+='<div class="report-summary">'+esc(a.executive_summary)+'</div>';
+  html+='</div>';
+
+  html+='<div class="stats-grid">';
+  html+='<div class="stat-card"><div class="stat-val">'+data.totalSelected+'</div><div class="stat-lbl">Reels tahlil</div></div>';
+  html+='<div class="stat-card"><div class="stat-val">'+data.transcribedCount+'</div><div class="stat-lbl">Transkripsiya</div></div>';
+  html+='<div class="stat-card"><div class="stat-val">'+(data.avgLikes||0).toLocaleString('ru')+'</div><div class="stat-lbl">O\'rt. layk</div></div>';
+  if(a.funnel)html+='<div class="stat-card"><div class="stat-val">'+esc(a.funnel.niche_avg_er||'—')+'</div><div class="stat-lbl">Nisha ER</div></div>';
+  html+='</div>';
+
+  if(a.funnel){
+    html+='<div class="funnel-section"><div class="section-title">// TOF / MOF / BOF — kontent voronkasi</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Воронка — путь аудитории от незнакомца до клиента. <strong style="color:#ccc">TOF 60%</strong> — новая аудитория. <strong style="color:#ccc">MOF 30%</strong> — доверие. <strong style="color:#ccc">BOF 10%</strong> — продажи.</div>';
+    html+='<div class="funnel-grid"><div class="funnel-chart-wrap"><canvas id="funnelChart" width="200" height="200"></canvas></div>';
+    html+='<div class="funnel-legend">';
+    [{key:'tof',label:'TOF',color:'var(--tof)',ideal:60},{key:'mof',label:'MOF',color:'var(--mof)',ideal:30},{key:'bof',label:'BOF',color:'var(--bof)',ideal:10}].forEach(function(item){
+      var val=a.funnel[item.key]||0;var diff=val-item.ideal;
+      html+='<div class="funnel-item"><div class="funnel-label"><span class="funnel-name" style="color:'+item.color+'">'+item.label+'</span><span class="funnel-pct">'+val+'%</span></div>';
+      html+='<div class="funnel-bar-wrap"><div class="funnel-bar" style="width:'+val+'%;background:'+item.color+'"></div></div>';
+      html+='<div class="funnel-ideal">Ideal: '+item.ideal+'% <span style="color:'+(Math.abs(diff)<=10?'var(--success)':'var(--accent2)')+';">'+(diff>0?'+':'')+diff+'%</span></div></div>';
+    });
+    html+='</div></div>';
+    if(a.funnel.verdict)html+='<div class="funnel-verdict">'+esc(a.funnel.verdict)+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
+    html+='</div>';
+  }
+
+  if(a.missed_leads){
+    html+='<div class="missed-leads"><div class="label">// упущенные возможности</div>';
+    html+='<div class="missed-number">~'+a.missed_leads.count+'</div>';
+    html+='<div class="missed-label">потенциальных заявок упущено</div>';
+    html+='<div class="missed-exp">'+esc(a.missed_leads.explanation||'')+'</div></div>';
+  }
+
+  if(a.videos&&a.videos.length){
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">// анализ каждого рилса</div>';
+    a.videos.forEach(function(v,i){
+      var tr=data.transcripts[i]||{};
+      html+='<div class="video-card"><div class="video-card-header" onclick="toggleDetail('+i+')">';
+      html+='<span class="video-badge '+badgeClass(v.funnel_type||'TOF')+'">'+esc(v.funnel_type||'?')+'</span>';
+      html+='<div><div class="video-caption">'+esc((tr.caption||v.summary||'').slice(0,100))+'</div>';
+      html+='<div class="video-metrics"><div class="metric">❤️ <span>'+(tr.likes||v.actual_likes||0).toLocaleString('ru')+'</span></div><div class="metric">💬 <span>'+(tr.comments||0)+'</span></div>';
+      if(v.expected_likes)html+='<div class="metric">🎯 <span style="color:'+(v.expected_likes>(v.actual_likes||0)?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+' ожидалось</span></div>';
+      html+='</div><div class="expand-btn" id="eb-'+i+'">▼ Детальный анализ</div></div>';
+      html+='<div class="video-scores">';
+      html+='<div class="score-row"><div class="score-label">Хук</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+scoreColor(v.hook_score||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.hook_score||5)+'">'+(v.hook_score||5)+'/10</div></div>';
+      html+='<div class="score-row"><div class="score-label">Вирал</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+scoreColor(v.viral_potential||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.viral_potential||5)+'">'+(v.viral_potential||5)+'/10</div></div>';
+      html+='</div></div>';
+      if(v.performance_gap)html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
+      html+='<div class="video-detail" id="vd-'+i+'">';
+      if(tr.transcript&&tr.transcript!=='(mavjud emas)'){
+        html+='<div class="transcript-box"><div class="transcript-box-label">// текст транскрипции</div><div class="transcript-box-text">'+esc(tr.transcript)+'</div></div>';
+      }
+      if(v.emotional_trigger)html+='<span class="emotional-trigger">🧠 '+esc(v.emotional_trigger)+'</span>';
+      if(v.hook_analysis)html+='<div class="hook-analysis">🎣 '+esc(v.hook_analysis)+'</div>';
+      if(v.deep_analysis&&v.deep_analysis.sentences&&v.deep_analysis.sentences.length){
+        html+='<div class="detail-title">// анализ сценария</div>';
+        v.deep_analysis.sentences.forEach(function(s){
+          html+='<div class="sentence-item"><div class="sentence-original">❌ '+esc(s.original||'')+'</div><div class="sentence-problem">Проблема: '+esc(s.problem||'')+'</div><div class="sentence-fix">✅ '+esc(s.fix||'')+'</div><div class="sentence-why">'+esc(s.why_fix_works||'')+'</div>';
+          if(s.trigger)html+='<span class="sentence-trigger">'+esc(s.trigger)+'</span>';
+          html+='</div>';
+        });
+      }
+      if(v.deep_analysis&&v.deep_analysis.outcome)html+='<div class="outcome-box">🚀 '+esc(v.deep_analysis.outcome)+'</div>';
+      html+='</div></div>';
+    });
+  }
+
+  if(a.top_recommendations&&a.top_recommendations.length){
+    html+='<div class="recs-section"><div class="section-title">// рекомендации</div>';
+    a.top_recommendations.forEach(function(r,i){html+='<div class="rec-item"><div class="rec-num">0'+(i+1)+'</div><div class="rec-text">'+esc(r)+'</div></div>';});
+    html+='</div>';
+  }
+
+  html+='<div class="btn-row"><button class="copy-btn" onclick="copyTxt()">⎘ nusxalash</button><button class="dl-btn" onclick="downloadTxt()">↓ .txt</button><button class="pdf-btn" onclick="downloadPDF()">↓ PDF yuklab olish</button></div>';
+
+  report.innerHTML=html;
+  window._reportData=data;
+  setTimeout(function(){if(a.funnel)renderFunnelChart(a.funnel);},100);
+  report.scrollIntoView({behavior:'smooth'});
+}
+
+function toggleDetail(i){
+  var vd=document.getElementById('vd-'+i);var eb=document.getElementById('eb-'+i);
+  if(vd.classList.contains('open')){vd.classList.remove('open');eb.textContent='▼ Детальный анализ';}
+  else{vd.classList.add('open');eb.textContent='▲ Закрыть';}
+}
+
+function copyTxt(){if(window._reportData)navigator.clipboard.writeText(buildTxt(window._reportData));}
+function downloadTxt(){if(window._reportData)dlFile(buildTxt(window._reportData),'report_'+(window._reportData.username||'ig')+'.txt');}
+function buildTxt(d){
+  var t='@'+(d.username||'')+' — Report\n'+'='.repeat(60)+'\n\n';
+  if(d.analysis){
+    if(typeof d.analysis==='string'){t+=d.analysis;}
+    else{
+      t+='EXECUTIVE SUMMARY:\n'+(d.analysis.executive_summary||'')+'\n\n';
+      if(d.analysis.funnel)t+='ВОРОНКА: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';
+      if(d.analysis.missed_leads)t+='УПУЩЕНО: ~'+d.analysis.missed_leads.count+'\n\n';
+      if(d.transcripts)d.transcripts.forEach(function(tr,i){t+='REEL '+(i+1)+' ТРАНСКРИПЦИЯ:\n'+(tr.transcript||'—')+'\n\n';});
+      if(d.analysis.videos)d.analysis.videos.forEach(function(v,i){t+='REEL '+(i+1)+' ['+v.funnel_type+']\nХук: '+v.hook_score+'/10 | Вирал: '+v.viral_potential+'/10\n'+(v.performance_gap||'')+'\n\n';});
+      if(d.analysis.top_recommendations)d.analysis.top_recommendations.forEach(function(r,i){t+=(i+1)+'. '+r+'\n';});
+    }
+  }
+  return t;
 }
 
 async function loadReels(){
