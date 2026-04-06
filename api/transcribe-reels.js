@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { username, reels } = req.body;
-  const GROQ_KEY = process.env.GROQ_KEY;
+  const AISHA_KEY = process.env.AISHA_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
   if (!reels || !reels.length) return res.status(400).json({ error: 'Reels not provided' });
@@ -14,84 +14,74 @@ export default async function handler(req, res) {
     try {
       if (!reel || !reel.videoUrl) return null;
 
+      // Скачиваем видео
       const videoRes = await fetch(reel.videoUrl);
       if (!videoRes.ok) return null;
-
       const videoBuffer = await videoRes.arrayBuffer();
       if (!videoBuffer || videoBuffer.byteLength < 1000) return null;
 
-      const uint8Array = new Uint8Array(videoBuffer);
-      const boundary = '----FB' + Math.random().toString(36).slice(2);
+      // Отправляем в Aisha STT
+      const formData = new FormData();
+      const blob = new Blob([videoBuffer], { type: 'video/mp4' });
+      formData.append('audio', blob, 'audio.mp4');
+      formData.append('language', 'uz');
+      formData.append('has_diarization', 'false');
 
-      const beforeFile =
-        '--' + boundary + '\r\n' +
-        'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n' +
-        '--' + boundary + '\r\n' +
-        'Content-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n' +
-        '--' + boundary + '\r\n' +
-        'Content-Disposition: form-data; name="file"; filename="audio.mp4"\r\nContent-Type: video/mp4\r\n\r\n';
-      const afterFile = '\r\n--' + boundary + '--\r\n';
-
-      const beforeBytes = new TextEncoder().encode(beforeFile);
-      const afterBytes = new TextEncoder().encode(afterFile);
-      const body = new Uint8Array(beforeBytes.length + uint8Array.length + afterBytes.length);
-      body.set(beforeBytes, 0);
-      body.set(uint8Array, beforeBytes.length);
-      body.set(afterBytes, beforeBytes.length + uint8Array.length);
-
-      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      const uploadRes = await fetch('https://back.aisha.group/api/v2/stt/post/', {
         method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + GROQ_KEY,
-          'Content-Type': 'multipart/form-data; boundary=' + boundary
-        },
-        body: body
+        headers: { 'x-api-key': AISHA_KEY },
+        body: formData
       });
 
-      if (!groqRes.ok) return null;
-      const rawText = await groqRes.text();
-      if (!rawText || rawText.length < 5) return null;
+      console.log('Aisha upload status:', uploadRes.status);
+      if (!uploadRes.ok) {
+        const err = await uploadRes.text();
+        console.log('Aisha error:', err);
+        return null;
+      }
 
-      // Claude исправляет на узбекский
-      const fixRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 2000,
-          messages: [{
-            role: 'user',
-            content: `Bu matn audio transkripsiya natijasi. Matn o'zbek tilida gapirilib, lekin Whisper uni boshqa tilda (qozoq, ozarbayjon, turk yoki boshqa) transkripsiya qilgan.
+      const uploadData = await uploadRes.json();
+      const taskId = uploadData.id;
+      console.log('Aisha task id:', taskId);
 
-Quyidagi qoidalarga amal qil:
-1. Matnni to'liq o'zbek tiliga o'tkazib yoz
-2. Har bir so'zni o'zbek tilining to'g'ri shakliga keltir
-3. Grammatika va imlosini tuzat
-4. Matnning umumiy mazmunini saqlagan holda o'zbek tiliga moslash
-5. FAQAT tuzatilgan o'zbek tilidagi matnni yoz — boshqa hech narsa yozma
+      // Polling — ждём результат
+      let attempts = 0;
+      while (attempts < 30) {
+        await new Promise(r => setTimeout(r, 3000));
+        attempts++;
 
-Matn:
-${rawText}`
-          }]
-        })
-      });
+        const statusRes = await fetch(`https://back.aisha.group/api/v2/stt/get/${taskId}/`, {
+          headers: { 'x-api-key': AISHA_KEY }
+        });
 
-      if (!fixRes.ok) return rawText;
-      const fixData = await fixRes.json();
-      return fixData.content[0].text.trim() || rawText;
+        if (!statusRes.ok) continue;
+        const statusData = await statusRes.json();
+        console.log('Aisha status:', statusData.status);
 
+        if (statusData.status === 'SUCCESS') {
+          console.log('Transcript:', statusData.transcript ? statusData.transcript.slice(0, 100) : 'EMPTY');
+          return statusData.transcript || null;
+        }
+
+        if (statusData.status === 'FAILED') {
+          console.log('Aisha failed');
+          return null;
+        }
+      }
+
+      return null;
     } catch(e) {
+      console.log('Transcribe error:', e.message);
       return null;
     }
   }
 
   try {
+    console.log('Processing', reels.length, 'reels');
+
     const transcriptResults = await Promise.all(reels.map(async (reel, idx) => {
       if (!reel) return { shortCode:'',url:'',caption:'',likes:0,comments:0,date:'?',transcript:'(mavjud emas)' };
+      console.log('Reel', idx+1, '- videoUrl:', reel.videoUrl ? 'YES' : 'NO');
       const transcript = reel.videoUrl ? await transcribeReel(reel) : null;
       return {
         shortCode: reel.shortCode || '',
@@ -105,6 +95,8 @@ ${rawText}`
     }));
 
     const transcribedCount = transcriptResults.filter(r => r.transcript !== '(mavjud emas)').length;
+    console.log('Transcribed:', transcribedCount, '/', reels.length);
+
     const avgLikes = Math.round(reels.filter(r=>r).reduce((s,r) => s+(r.likesCount||0), 0) / reels.length);
 
     const reelsForClaude = transcriptResults.map((r,i) =>
@@ -215,6 +207,7 @@ FAQAT to'g'ri JSON qaytaring. Markdown yo'q, tushuntirish yo'q. Faqat JSON:
     });
 
   } catch(e) {
+    console.log('ERROR:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
