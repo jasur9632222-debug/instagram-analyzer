@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { username, reels } = req.body;
-  const AISHA_KEY = process.env.AISHA_KEY;
+  const KOTIB_KEY = process.env.KOTIB_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
   if (!reels || !reels.length) return res.status(400).json({ error: 'Reels not provided' });
@@ -23,40 +23,45 @@ export default async function handler(req, res) {
       const blob = new Blob([videoBuffer], { type: 'video/mp4' });
       formData.append('audio', blob, 'audio.mp4');
       formData.append('language', 'uz');
-      formData.append('has_diarization', 'false');
+      formData.append('blocking', 'true');
 
-      const uploadRes = await fetch('https://back.aisha.group/api/v2/stt/post/', {
+      const kotibRes = await fetch('https://developer.kotib.ai/api/v1/stt', {
         method: 'POST',
-        headers: { 'x-api-key': AISHA_KEY },
+        headers: { 'Authorization': 'Bearer ' + KOTIB_KEY },
         body: formData
       });
 
-      console.log('Aisha upload status:', uploadRes.status);
-      if (!uploadRes.ok) {
-        const err = await uploadRes.text();
-        console.log('Aisha error:', err);
+      console.log('Kotib status:', kotibRes.status);
+      if (!kotibRes.ok) {
+        const err = await kotibRes.text();
+        console.log('Kotib error:', err);
         return null;
       }
 
-      const uploadData = await uploadRes.json();
-      const taskId = uploadData.id;
-      console.log('Aisha task id:', taskId);
+      const kotibData = await kotibRes.json();
+      console.log('Kotib response:', JSON.stringify(kotibData).slice(0, 200));
 
-      let attempts = 0;
-      while (attempts < 30) {
-        await new Promise(r => setTimeout(r, 3000));
-        attempts++;
-        const statusRes = await fetch(`https://back.aisha.group/api/v2/stt/get/${taskId}/`, {
-          headers: { 'x-api-key': AISHA_KEY }
-        });
-        if (!statusRes.ok) continue;
-        const statusData = await statusRes.json();
-        console.log('Aisha status:', statusData.status);
-        if (statusData.status === 'SUCCESS') {
-          return statusData.transcript || null;
-        }
-        if (statusData.status === 'FAILED') return null;
+      if (kotibData.status === 'success') {
+        return kotibData.text || null;
       }
+
+      // Если async — polling
+      if (kotibData.id) {
+        let attempts = 0;
+        while (attempts < 20) {
+          await new Promise(r => setTimeout(r, 3000));
+          attempts++;
+          const statusRes = await fetch(`https://developer.kotib.ai/api/v1/get-status?id=${kotibData.id}`, {
+            headers: { 'Authorization': 'Bearer ' + KOTIB_KEY }
+          });
+          if (!statusRes.ok) continue;
+          const statusData = await statusRes.json();
+          console.log('Kotib poll status:', statusData.status, 'attempt:', attempts);
+          if (statusData.status === 'success') return statusData.text || null;
+          if (statusData.status === 'failed') return null;
+        }
+      }
+
       return null;
     } catch(e) {
       console.log('Transcribe error:', e.message);
@@ -64,12 +69,9 @@ export default async function handler(req, res) {
     }
   }
 
-  try {
-    console.log('Processing', reels.length, 'reels');
-
-    const transcriptResults = await Promise.all(reels.map(async (reel, idx) => {
+  async function processBatch(batch) {
+    return Promise.all(batch.map(async (reel) => {
       if (!reel) return { shortCode:'',url:'',caption:'',likes:0,comments:0,date:'?',transcript:'(mavjud emas)' };
-      console.log('Reel', idx+1, '- videoUrl:', reel.videoUrl ? 'YES' : 'NO');
       const transcript = reel.videoUrl ? await transcribeReel(reel) : null;
       return {
         shortCode: reel.shortCode || '',
@@ -81,6 +83,24 @@ export default async function handler(req, res) {
         transcript: transcript || '(mavjud emas)'
       };
     }));
+  }
+
+  try {
+    console.log('Total reels:', reels.length);
+
+    const batchSize = 5;
+    const batches = [];
+    for (let i = 0; i < reels.length; i += batchSize) {
+      batches.push(reels.slice(i, i + batchSize));
+    }
+    console.log('Batches:', batches.length);
+
+    const transcriptResults = [];
+    for (let i = 0; i < batches.length; i++) {
+      console.log('Processing batch', i+1, '/', batches.length);
+      const batchResults = await processBatch(batches[i]);
+      transcriptResults.push(...batchResults);
+    }
 
     const transcribedCount = transcriptResults.filter(r => r.transcript !== '(mavjud emas)').length;
     console.log('Transcribed:', transcribedCount, '/', reels.length);
@@ -91,7 +111,7 @@ export default async function handler(req, res) {
       'REEL '+(i+1)+':\nCaption: '+r.caption+'\nЛайки: '+r.likes+' | Комменты: '+r.comments+'\nТранскрипция: '+r.transcript
     ).join('\n\n---\n\n');
 
-    const prompt = `Ты — Senior Content Strategist с 10+ летним опытом в контент-стратегии и воронках продаж.
+    const prompt = `Ты — Senior Content Strategist с 10+ летним опытом.
 
 Аккаунт: @${username}
 Проанализировано reels: ${reels.length}
@@ -101,56 +121,56 @@ export default async function handler(req, res) {
 ТРАНСКРИПЦИИ:
 ${reelsForClaude}
 
-Верни ТОЛЬКО валидный JSON без markdown, без backticks, без пояснений. Только JSON:
+Верни ТОЛЬКО валидный JSON без markdown:
 
 {
   "funnel": {
-    "tof": <число от 0 до 100>,
-    "mof": <число от 0 до 100>,
-    "bof": <число от 0 до 100>,
+    "tof": <число 0-100>,
+    "mof": <число 0-100>,
+    "bof": <число 0-100>,
     "ideal": {"tof": 60, "mof": 30, "bof": 10},
-    "verdict": "<2-3 предложения о балансе воронки на русском>",
-    "niche": "<ниша автора на русском>",
-    "niche_avg_er": "<средний ER в этой нише, например 2-4%>"
+    "verdict": "<2-3 предложения о балансе воронки>",
+    "niche": "<ниша автора>",
+    "niche_avg_er": "<средний ER в нише>"
   },
   "missed_leads": {
-    "count": <примерное число упущенных заявок>,
-    "explanation": "<объяснение на русском>"
+    "count": <число упущенных заявок>,
+    "explanation": "<объяснение>"
   },
   "videos": [
     {
       "index": 1,
       "funnel_type": "<TOF|MOF|BOF>",
-      "hook_score": <число от 1 до 10>,
-      "hook_analysis": "<анализ первых 3 секунд на русском>",
-      "emotional_trigger": "<какую эмоцию использует: страх/надежда/любопытство/гордость/стыд на русском>",
+      "hook_score": <1-10>,
+      "hook_analysis": "<анализ первых 3 секунд>",
+      "emotional_trigger": "<эмоция: страх/надежда/любопытство/гордость/стыд>",
       "actual_likes": <число>,
-      "expected_likes": <сколько должно было набрать>,
-      "performance_gap": "<почему не набрало — 2-3 причины на русском>",
-      "viral_potential": <число от 1 до 10>,
-      "summary": "<краткий вывод по видео на русском>",
+      "expected_likes": <число>,
+      "performance_gap": "<почему не набрало — 2-3 причины>",
+      "viral_potential": <1-10>,
+      "summary": "<краткий вывод>",
       "deep_analysis": {
         "sentences": [
           {
-            "original": "<оригинальная фраза из транскрипции>",
-            "problem": "<почему не сработало на русском>",
-            "fix": "<исправленный вариант на русском>",
-            "why_fix_works": "<почему новый вариант лучше на русском>",
-            "trigger": "<эмоциональный триггер в новом варианте на русском>"
+            "original": "<оригинальная фраза>",
+            "problem": "<почему не сработало>",
+            "fix": "<исправленный вариант>",
+            "why_fix_works": "<почему лучше>",
+            "trigger": "<эмоциональный триггер>"
           }
         ],
-        "outcome": "<что произойдёт если применить все исправления на русском>"
+        "outcome": "<что произойдёт если применить исправления>"
       }
     }
   ],
-  "executive_summary": "<3-4 предложения об аккаунте на русском>",
-  "funnel_recommendations": "<что нужно изменить в TOF/MOF/BOF на русском>",
+  "executive_summary": "<3-4 предложения об аккаунте>",
+  "funnel_recommendations": "<что изменить в TOF/MOF/BOF>",
   "top_recommendations": [
-    "<рекомендация 1 на русском>",
-    "<рекомендация 2 на русском>",
-    "<рекомендация 3 на русском>",
-    "<рекомендация 4 на русском>",
-    "<рекомендация 5 на русском>"
+    "<рекомендация 1>",
+    "<рекомендация 2>",
+    "<рекомендация 3>",
+    "<рекомендация 4>",
+    "<рекомендация 5>"
   ]
 }`;
 
