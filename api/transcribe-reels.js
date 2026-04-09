@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { username, reels } = req.body;
-  const KOTIB_KEY = process.env.KOTIB_KEY;
+  const AISHA_KEY = process.env.AISHA_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
   if (!reels || !reels.length) return res.status(400).json({ error: 'Reels not provided' });
@@ -23,45 +23,57 @@ export default async function handler(req, res) {
       const blob = new Blob([videoBuffer], { type: 'video/mp4' });
       formData.append('audio', blob, 'audio.mp4');
       formData.append('language', 'uz');
-      formData.append('blocking', 'true');
+      formData.append('has_diarization', 'false');
 
-      const kotibRes = await fetch('https://developer.kotib.ai/api/v1/stt', {
+      const uploadRes = await fetch('https://back.aisha.group/api/v2/stt/post/', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + KOTIB_KEY },
+        headers: { 'x-api-key': AISHA_KEY },
         body: formData
       });
 
-      console.log('Kotib status:', kotibRes.status);
-      if (!kotibRes.ok) {
-        const err = await kotibRes.text();
-        console.log('Kotib error:', err);
+      console.log('Aisha upload status:', uploadRes.status);
+      if (!uploadRes.ok) {
+        const err = await uploadRes.text();
+        console.log('Aisha error:', err);
         return null;
       }
 
-      const kotibData = await kotibRes.json();
-      console.log('Kotib response:', JSON.stringify(kotibData).slice(0, 200));
+      const uploadData = await uploadRes.json();
+      const taskId = uploadData.id;
+      console.log('Aisha task id:', taskId, 'status:', uploadData.status);
 
-      if (kotibData.status === 'success') {
-        return kotibData.text || null;
-      }
+      if (!taskId) return null;
 
-      // Если async — polling
-      if (kotibData.id) {
-        let attempts = 0;
-        while (attempts < 20) {
-          await new Promise(r => setTimeout(r, 3000));
-          attempts++;
-          const statusRes = await fetch(`https://developer.kotib.ai/api/v1/get-status?id=${kotibData.id}`, {
-            headers: { 'Authorization': 'Bearer ' + KOTIB_KEY }
-          });
-          if (!statusRes.ok) continue;
-          const statusData = await statusRes.json();
-          console.log('Kotib poll status:', statusData.status, 'attempt:', attempts);
-          if (statusData.status === 'success') return statusData.text || null;
-          if (statusData.status === 'failed') return null;
+      // Polling
+      let attempts = 0;
+      while (attempts < 25) {
+        await new Promise(r => setTimeout(r, 4000));
+        attempts++;
+
+        const statusRes = await fetch(`https://back.aisha.group/api/v2/stt/get/${taskId}/`, {
+          headers: { 'x-api-key': AISHA_KEY }
+        });
+
+        if (!statusRes.ok) {
+          console.log('Poll error:', statusRes.status);
+          continue;
+        }
+
+        const statusData = await statusRes.json();
+        console.log('Aisha poll:', statusData.status, 'attempt:', attempts);
+
+        if (statusData.status === 'SUCCESS') {
+          const text = statusData.transcript || statusData.text || null;
+          console.log('Transcript:', text ? text.slice(0, 80) : 'EMPTY');
+          return text;
+        }
+        if (statusData.status === 'FAILED' || statusData.status === 'ERROR') {
+          console.log('Aisha failed');
+          return null;
         }
       }
 
+      console.log('Aisha timeout');
       return null;
     } catch(e) {
       console.log('Transcribe error:', e.message);
