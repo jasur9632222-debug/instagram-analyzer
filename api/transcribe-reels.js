@@ -1,5 +1,5 @@
 // api/transcribe-reels.js
-// Видео скачиваем сами → отправляем в Deepgram как бинарный файл
+// OpenAI Whisper основной (поддерживает узбекский), Deepgram fallback
 export const config = { maxDuration: 300 };
 
 export default async function handler(req, res) {
@@ -13,9 +13,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'reels array required' });
   }
 
-  const AISHA_KEY = process.env.AISHA_KEY;
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
+  const OPENAI_KEY = process.env.OPENAI_KEY;
   const DEEPGRAM_KEY = process.env.DEEPGRAM_KEY;
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
   // ─── ШАГ 1: Транскрипция каждого рилса ───
   const transcripts = [];
@@ -27,10 +27,10 @@ export default async function handler(req, res) {
     let source = null;
     let videoBuffer = null;
 
-    // Сначала скачиваем видео через наш сервер
+    // Скачиваем видео через наш сервер
     if (videoUrl) {
       try {
-        console.log(`Downloading video: ${shortcode}`);
+        console.log(`Downloading: ${shortcode}`);
         const videoRes = await fetch(videoUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -42,78 +42,69 @@ export default async function handler(req, res) {
         if (videoRes.ok) {
           videoBuffer = await videoRes.arrayBuffer();
           console.log(`Downloaded ${videoBuffer.byteLength} bytes`);
-        } else {
-          console.error(`Video download failed: ${videoRes.status}`);
         }
       } catch (err) {
-        console.error('Video download error:', err.message);
+        console.error('Download error:', err.message);
       }
     }
 
-    // ── ОСНОВНОЙ: Deepgram с бинарным файлом ──
-    if (videoBuffer && DEEPGRAM_KEY) {
+    // ── ОСНОВНОЙ: OpenAI Whisper (поддерживает узбекский) ──
+    if (videoBuffer && OPENAI_KEY) {
       try {
-        console.log(`Sending to Deepgram: ${shortcode}`);
+        console.log(`Whisper transcribing: ${shortcode}`);
+        const formData = new FormData();
+        const blob = new Blob([videoBuffer], { type: 'video/mp4' });
+        formData.append('file', blob, `reel_${shortcode || id}.mp4`);
+        formData.append('model', 'whisper-1');
+        formData.append('language', 'uz'); // узбекский
+        // Если рилс на русском — можно убрать language чтобы автоопределялось
+
+        const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_KEY}`,
+          },
+          body: formData,
+        });
+
+        if (whisperRes.ok) {
+          const whisperData = await whisperRes.json();
+          transcript = whisperData?.text || null;
+          if (transcript) {
+            source = 'whisper';
+            console.log(`Whisper OK: ${transcript.slice(0, 80)}`);
+          }
+        } else {
+          const err = await whisperRes.text();
+          console.error(`Whisper error ${whisperRes.status}:`, err);
+        }
+      } catch (err) {
+        console.error('Whisper error:', err.message);
+      }
+    }
+
+    // ── FALLBACK: Deepgram с принудительным русским ──
+    if (!transcript && videoBuffer && DEEPGRAM_KEY) {
+      try {
+        console.log(`Deepgram fallback: ${shortcode}`);
         const dgRes = await fetch(
-          'https://api.deepgram.com/v1/listen?detect_language=true&punctuate=true&smart_format=true',
+          'https://api.deepgram.com/v1/listen?language=ru&punctuate=true&smart_format=true',
           {
             method: 'POST',
             headers: {
               'Authorization': `Token ${DEEPGRAM_KEY}`,
               'Content-Type': 'video/mp4',
             },
-            body: videoBuffer, // ← бинарный файл, не URL
+            body: videoBuffer,
           }
         );
-
         if (dgRes.ok) {
           const dgData = await dgRes.json();
-          const detectedLang = dgData?.results?.channels?.[0]?.detected_language;
           transcript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript || null;
-          if (transcript) {
-            source = `deepgram(${detectedLang || 'auto'})`;
-            console.log(`Deepgram OK: lang=${detectedLang}, chars=${transcript.length}`);
-          }
-        } else {
-          const errText = await dgRes.text();
-          console.error(`Deepgram error ${dgRes.status}:`, errText);
+          if (transcript) source = 'deepgram';
         }
       } catch (err) {
         console.error('Deepgram error:', err.message);
-      }
-    }
-
-    // ── FALLBACK: Aisha с бинарным файлом ──
-    if (!transcript && videoBuffer && AISHA_KEY) {
-      try {
-        console.log(`Aisha fallback: ${shortcode}`);
-        const formData = new FormData();
-        const blob = new Blob([videoBuffer], { type: 'video/mp4' });
-        formData.append('audio', blob, `reel_${shortcode || id}.mp4`);
-        formData.append('title', `reel_${shortcode || id}`);
-        formData.append('has_diarization', 'false');
-        formData.append('language', 'uz');
-
-        const aishaRes = await fetch('https://back.aisha.group/api/v2/stt/post/', {
-          method: 'POST',
-          headers: { 'x-api-key': AISHA_KEY },
-          body: formData,
-        });
-
-        if (aishaRes.ok) {
-          const aishaData = await aishaRes.json();
-          transcript =
-            aishaData?.text ||
-            aishaData?.transcript ||
-            aishaData?.result ||
-            aishaData?.data?.text ||
-            null;
-          if (transcript) source = 'aisha';
-        } else {
-          console.error('Aisha error:', aishaRes.status, await aishaRes.text());
-        }
-      } catch (err) {
-        console.error('Aisha error:', err.message);
       }
     }
 
