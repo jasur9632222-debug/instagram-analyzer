@@ -1,5 +1,5 @@
 // api/transcribe-reels.js
-// Deepgram основной (автоопределение языка), Aisha fallback
+// Видео скачиваем сами → отправляем в Deepgram как бинарный файл
 export const config = { maxDuration: 300 };
 
 export default async function handler(req, res) {
@@ -25,42 +25,12 @@ export default async function handler(req, res) {
 
     let transcript = null;
     let source = null;
+    let videoBuffer = null;
 
-    // ── ОСНОВНОЙ: Deepgram (лучше определяет язык) ──
-    if (videoUrl && DEEPGRAM_KEY) {
+    // Сначала скачиваем видео через наш сервер
+    if (videoUrl) {
       try {
-        console.log(`Deepgram transcribing reel ${shortcode}...`);
-        const dgRes = await fetch(
-          'https://api.deepgram.com/v1/listen?detect_language=true&punctuate=true&smart_format=true',
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Token ${DEEPGRAM_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ url: videoUrl }),
-          }
-        );
-        if (dgRes.ok) {
-          const dgData = await dgRes.json();
-          const detectedLang = dgData?.results?.channels?.[0]?.detected_language;
-          transcript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript || null;
-          if (transcript) {
-            source = `deepgram(${detectedLang || 'auto'})`;
-            console.log(`Deepgram OK: lang=${detectedLang}, text length=${transcript.length}`);
-          }
-        } else {
-          console.error('Deepgram HTTP error:', dgRes.status);
-        }
-      } catch (err) {
-        console.error('Deepgram error:', err.message);
-      }
-    }
-
-    // ── FALLBACK: Aisha ──
-    if (!transcript && videoUrl && AISHA_KEY) {
-      try {
-        console.log(`Aisha fallback for reel ${shortcode}...`);
+        console.log(`Downloading video: ${shortcode}`);
         const videoRes = await fetch(videoUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -69,27 +39,78 @@ export default async function handler(req, res) {
           },
           redirect: 'follow',
         });
-
         if (videoRes.ok) {
-          const videoBuffer = await videoRes.arrayBuffer();
-          const formData = new FormData();
-          const blob = new Blob([videoBuffer], { type: 'video/mp4' });
-          formData.append('audio', blob, `reel_${shortcode || id}.mp4`);
-          formData.append('title', `reel_${shortcode || id}`);
-          formData.append('has_diarization', 'false');
-          formData.append('language', 'uz');
+          videoBuffer = await videoRes.arrayBuffer();
+          console.log(`Downloaded ${videoBuffer.byteLength} bytes`);
+        } else {
+          console.error(`Video download failed: ${videoRes.status}`);
+        }
+      } catch (err) {
+        console.error('Video download error:', err.message);
+      }
+    }
 
-          const aishaRes = await fetch('https://back.aisha.group/api/v2/stt/post/', {
+    // ── ОСНОВНОЙ: Deepgram с бинарным файлом ──
+    if (videoBuffer && DEEPGRAM_KEY) {
+      try {
+        console.log(`Sending to Deepgram: ${shortcode}`);
+        const dgRes = await fetch(
+          'https://api.deepgram.com/v1/listen?detect_language=true&punctuate=true&smart_format=true',
+          {
             method: 'POST',
-            headers: { 'x-api-key': AISHA_KEY },
-            body: formData,
-          });
-
-          if (aishaRes.ok) {
-            const aishaData = await aishaRes.json();
-            transcript = aishaData?.text || aishaData?.transcript || aishaData?.result || aishaData?.data?.text || null;
-            if (transcript) source = 'aisha';
+            headers: {
+              'Authorization': `Token ${DEEPGRAM_KEY}`,
+              'Content-Type': 'video/mp4',
+            },
+            body: videoBuffer, // ← бинарный файл, не URL
           }
+        );
+
+        if (dgRes.ok) {
+          const dgData = await dgRes.json();
+          const detectedLang = dgData?.results?.channels?.[0]?.detected_language;
+          transcript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript || null;
+          if (transcript) {
+            source = `deepgram(${detectedLang || 'auto'})`;
+            console.log(`Deepgram OK: lang=${detectedLang}, chars=${transcript.length}`);
+          }
+        } else {
+          const errText = await dgRes.text();
+          console.error(`Deepgram error ${dgRes.status}:`, errText);
+        }
+      } catch (err) {
+        console.error('Deepgram error:', err.message);
+      }
+    }
+
+    // ── FALLBACK: Aisha с бинарным файлом ──
+    if (!transcript && videoBuffer && AISHA_KEY) {
+      try {
+        console.log(`Aisha fallback: ${shortcode}`);
+        const formData = new FormData();
+        const blob = new Blob([videoBuffer], { type: 'video/mp4' });
+        formData.append('audio', blob, `reel_${shortcode || id}.mp4`);
+        formData.append('title', `reel_${shortcode || id}`);
+        formData.append('has_diarization', 'false');
+        formData.append('language', 'uz');
+
+        const aishaRes = await fetch('https://back.aisha.group/api/v2/stt/post/', {
+          method: 'POST',
+          headers: { 'x-api-key': AISHA_KEY },
+          body: formData,
+        });
+
+        if (aishaRes.ok) {
+          const aishaData = await aishaRes.json();
+          transcript =
+            aishaData?.text ||
+            aishaData?.transcript ||
+            aishaData?.result ||
+            aishaData?.data?.text ||
+            null;
+          if (transcript) source = 'aisha';
+        } else {
+          console.error('Aisha error:', aishaRes.status, await aishaRes.text());
         }
       } catch (err) {
         console.error('Aisha error:', err.message);
@@ -108,16 +129,22 @@ export default async function handler(req, res) {
     });
   }
 
-  const transcribedCount = transcripts.filter(t => t.transcript && t.transcript !== '(mavjud emas)').length;
+  const transcribedCount = transcripts.filter(
+    t => t.transcript && t.transcript !== '(mavjud emas)'
+  ).length;
+
   const avgLikes = reels.length
     ? Math.round(reels.reduce((s, r) => s + (r.likesCount || 0), 0) / reels.length)
     : 0;
 
   // ─── ШАГ 2: Claude анализ ───
-  const reelsText = transcripts.map((t, i) => {
-    return `[${i+1}] ❤️${t.likes} 💬${t.comments} | ${t.caption ? t.caption.slice(0, 150) : '(подпись нет)'}
-Транскрипция: ${t.transcript || '(нет)'}`;
-  }).join('\n\n---\n\n');
+  const reelsText = transcripts
+    .map((t, i) => {
+      return `[${i + 1}] ❤️${t.likes} 💬${t.comments} | ${
+        t.caption ? t.caption.slice(0, 150) : '(подпись нет)'
+      }\nТранскрипция: ${t.transcript || '(нет)'}`;
+    })
+    .join('\n\n---\n\n');
 
   let analysis = null;
 
@@ -132,9 +159,10 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
-        messages: [{
-          role: 'user',
-          content: `Ты — Senior Content Strategist. Анализируй ${reels.length} рилсов аккаунта @${username}.
+        messages: [
+          {
+            role: 'user',
+            content: `Ты — Senior Content Strategist. Анализируй ${reels.length} рилсов аккаунта @${username}.
 Верни ТОЛЬКО валидный JSON без лишнего текста, без \`\`\`json.
 
 РИЛСЫ:
@@ -185,8 +213,9 @@ ${reelsText}
     "Рекомендация 2",
     "Рекомендация 3"
   ]
-}`
-        }]
+}`,
+          },
+        ],
       }),
     });
 
@@ -200,10 +229,9 @@ ${reelsText}
     console.error('Claude/parse error:', e.message);
   }
 
-  // Fallback если Claude не ответил
   if (!analysis) {
     analysis = {
-      executive_summary: 'Tahlil qila olmadi. Keyinroq urinib ko\'ring.',
+      executive_summary: "Tahlil qila olmadi. Keyinroq urinib ko'ring.",
       funnel: { tof: 60, mof: 30, bof: 10, verdict: '', niche_avg_er: '—' },
       missed_leads: null,
       videos: [],
