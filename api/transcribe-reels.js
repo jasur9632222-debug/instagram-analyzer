@@ -44,6 +44,7 @@ export default async function handler(req, res) {
           formData.append('audio', blob, `reel_${shortcode || id}.mp4`);
           formData.append('title', `reel_${shortcode || id}`);
           formData.append('has_diarization', 'false');
+          formData.append('language', 'uz'); // ← узбекский язык
 
           const aishaRes = await fetch('https://back.aisha.group/api/v2/stt/post/', {
             method: 'POST',
@@ -55,6 +56,9 @@ export default async function handler(req, res) {
             const aishaData = await aishaRes.json();
             transcript = aishaData?.text || aishaData?.transcript || aishaData?.result || aishaData?.data?.text || null;
             source = 'aisha';
+          } else {
+            const errText = await aishaRes.text();
+            console.error('Aisha HTTP error:', aishaRes.status, errText);
           }
         }
       } catch (err) {
@@ -69,7 +73,10 @@ export default async function handler(req, res) {
           'https://api.deepgram.com/v1/listen?detect_language=true&punctuate=true&smart_format=true',
           {
             method: 'POST',
-            headers: { 'Authorization': `Token ${DEEPGRAM_KEY}`, 'Content-Type': 'application/json' },
+            headers: {
+              'Authorization': `Token ${DEEPGRAM_KEY}`,
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ url: videoUrl }),
           }
         );
@@ -180,7 +187,6 @@ ${reelsText}
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       analysis = JSON.parse(cleaned);
     } catch (e) {
-      // Если не JSON — базовый fallback
       analysis = {
         executive_summary: claudeData.content[0].text.slice(0, 300),
         funnel: { tof: 60, mof: 30, bof: 10, verdict: '', niche_avg_er: '—' },
