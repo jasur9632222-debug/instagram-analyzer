@@ -46,6 +46,7 @@ export default async function handler(req, res) {
       return '[' + (i+1) + '] ' + date + ' | ' + type + ' | ❤️ ' + likes + ' 💬 ' + comments + '\n' + (caption || '(sarlavha yoq)');
     }).join('\n\n---\n\n');
 
+    // Проверяем Claude API
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -54,7 +55,7 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
         messages: [{
           role: 'user',
@@ -95,7 +96,12 @@ Tavsif bilan 7 ta aniq post g'oyasi.`
       })
     });
 
-    if (!claudeRes.ok) throw new Error('Claude error: ' + claudeRes.status);
+    if (!claudeRes.ok) {
+      const errBody = await claudeRes.text();
+      console.error('Claude error body:', errBody);
+      throw new Error('Claude error: ' + claudeRes.status + ' — ' + errBody.slice(0, 200));
+    }
+
     const claudeData = await claudeRes.json();
     const analysisText = claudeData.content[0].text;
 
