@@ -8,18 +8,24 @@ export default async function handler(req, res) {
   const APIFY_TOKEN = process.env.APIFY_TOKEN;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
-  // Очищаем строку от сломанных суррогатных пар и проблемных символов
   function cleanText(str) {
     if (!str) return '';
-    return String(str)
-      .replace(/[\uD800-\uDFFF]/g, '') // убираем сломанные суррогаты
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '') // контрольные символы
-      .replace(/\uFFFD/g, '') // replacement character
+    return Array.from(String(str))
+      .filter(function(ch) {
+        var c = ch.codePointAt(0);
+        if (c >= 0xD800 && c <= 0xDFFF) return false;
+        if (c === 0xFFFD) return false;
+        if (c <= 8 || c === 11 || c === 12 || (c >= 14 && c <= 31)) return false;
+        return true;
+      })
+      .join('')
       .trim();
   }
 
   try {
-    const sRes = await fetch(`https://api.apify.com/v2/acts/apify~instagram-scraper/runs/${runId}?token=${APIFY_TOKEN}`);
+    const sRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}`, {
+      headers: { 'Authorization': `Bearer ${APIFY_TOKEN}` }
+    });
     const sData = await sRes.json();
     const status = sData.data.status;
     console.log('Apify status:', status);
@@ -31,7 +37,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Apify error: ' + status });
     }
 
-    const dataRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=50`);
+    const dataRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?limit=50`, {
+      headers: { 'Authorization': `Bearer ${APIFY_TOKEN}` }
+    });
     const posts = await dataRes.json();
     console.log('Posts count:', posts?.length);
     if (!posts || posts.length === 0) throw new Error('Postlar topilmadi');
@@ -50,7 +58,7 @@ export default async function handler(req, res) {
     const postsText = posts.map((p, i) => {
       const likes = p.likesCount ?? 0;
       const comments = p.commentsCount ?? 0;
-      const caption = cleanText((p.caption || '').slice(0, 300)); // ← очищаем
+      const caption = cleanText((p.caption || '').slice(0, 300));
       const type = p.type || (p.videoUrl ? 'Video' : 'Image');
       const date = p.timestamp ? new Date(p.timestamp * 1000).toLocaleDateString('ru') : '?';
       return '[' + (i+1) + '] ' + date + ' | ' + type + ' | Layk: ' + likes + ' Izoh: ' + comments + '\n' + (caption || '(sarlavha yoq)');
@@ -70,7 +78,7 @@ O'zbek tilida batafsil hisobot tuzing (oddiy matn ko'rinishida, JSON emas):
 Muallif kim, nisha, bozordagi o'rni, asosiy insight.
 
 ## AKKAUNT PORTRETI
-Nisha, maqsadli auditoriya, UTP, TOV (muloqot uslubi).
+Nisha, maqsadly auditoriya, UTP, TOV (muloqot uslubi).
 
 ## METRIKALAR VA ENGAGEMENT
 ER Rate, o'rtacha layk, izohlar tahlili. Nisha bilan taqqoslash.
