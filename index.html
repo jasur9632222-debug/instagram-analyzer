@@ -112,6 +112,38 @@ input::placeholder{color:#333;}
 .video-detail{display:none;border-top:1px solid var(--border);padding:24px;}
 .video-detail.open{display:block;animation:fadeIn .3s ease;}
 .detail-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;}
+/* Pros / Cons inside detail */
+.pros-cons-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.pros-box{background:#0a1a0a;border:1px solid #1a3a1a;border-radius:2px;padding:14px;}
+.cons-box{background:#1a0a0a;border:1px solid #3a1a1a;border-radius:2px;padding:14px;}
+.pros-title,.cons-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:10px;}
+.pros-title{color:var(--success);}
+.cons-title{color:var(--accent2);}
+.pros-list,.cons-list{list-style:none;padding:0;margin:0;}
+.pros-list li,.cons-list li{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.8;color:#ccc;padding:1px 0;}
+.pros-list li::before{content:"✓ ";color:var(--success);}
+.cons-list li::before{content:"✗ ";color:var(--accent2);}
+/* Per-reel recommendations */
+.reel-recs{background:#0a0a14;border:1px solid #1a1a2a;border-radius:2px;padding:14px;margin-bottom:16px;}
+.reel-recs-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8888ff;letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;}
+.reel-recs-list{list-style:none;padding:0;margin:0;}
+.reel-recs-list li{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#aaaacc;line-height:1.8;padding:1px 0;}
+.reel-recs-list li::before{content:"→ ";color:#8888ff;}
+/* Account analysis section */
+.account-analysis{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:28px;margin-bottom:16px;}
+.content-style-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#ccc;line-height:1.8;margin-bottom:16px;}
+.topics-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;margin-bottom:20px;}
+.topic-tag{background:var(--bg);border:1px solid var(--border);border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#ccc;padding:4px 10px;}
+.strengths-weaknesses{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.sw-box{border-radius:2px;padding:16px;}
+.sw-box.strengths{background:#0a1a0a;border:1px solid #1a3a1a;}
+.sw-box.weaknesses{background:#1a0a0a;border:1px solid #3a1a1a;}
+.sw-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:10px;}
+.sw-box.strengths .sw-title{color:var(--success);}
+.sw-box.weaknesses .sw-title{color:var(--accent2);}
+.sw-list{list-style:none;padding:0;margin:0;}
+.sw-list li{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#ccc;line-height:1.8;padding:1px 0;}
+.sw-list li::before{content:"• ";color:var(--muted);}
 .transcript-box{background:#0a1a0a;border:1px solid #1a3a1a;border-radius:2px;padding:16px;margin-bottom:16px;}
 .transcript-box-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--success);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;}
 .transcript-box-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#aaccaa;line-height:1.8;}
@@ -137,13 +169,13 @@ input::placeholder{color:#333;}
 .dl-btn:hover{background:#d4eb00;}
 .pdf-btn{background:#ff6b35;border:none;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;padding:10px 18px;cursor:pointer;border-radius:2px;}
 .pdf-btn:hover{background:#e55a25;}
-@media(max-width:600px){.funnel-grid{grid-template-columns:1fr;}.video-card-header{grid-template-columns:auto 1fr;}.video-scores{display:none;}}
+@media(max-width:600px){.funnel-grid{grid-template-columns:1fr;}.video-card-header{grid-template-columns:auto 1fr;}.video-scores{display:none;}.pros-cons-grid{grid-template-columns:1fr;}.strengths-weaknesses{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <div class="label">// аналитический инструмент v5.0</div>
+    <div class="label">// аналитический инструмент v6.0</div>
     <h1>INSTAGRAM<br><span>ANALYZER</span></h1>
     <div class="subtitle">→ reels · transkripsiya · TOF/MOF/BOF · ssenariy tahlili</div>
   </header>
@@ -156,14 +188,14 @@ input::placeholder{color:#333;}
   <div class="card">
     <div class="card-title">// tahlil turini tanlang</div>
     <div class="mode-tabs">
-      <button class="mode-tab active" onclick="setMode('posts',this)">📝 Postlar tahlili</button>
-      <button class="mode-tab" onclick="setMode('reels',this)">▶ Reels transkripsiya</button>
+      <button class="mode-tab" onclick="setMode('posts',this)">📝 Postlar tahlili</button>
+      <button class="mode-tab active" onclick="setMode('reels',this)">▶ Reels tahlili</button>
     </div>
-    <div id="modePostsUI">
+    <div id="modePostsUI" style="display:none">
       <input type="text" id="username" placeholder="username (@ siz)" value="husan.mamasaidov"/>
       <button class="btn" id="analyzeBtn" onclick="startAnalysis()">▶ TAHLIL BOSHLASH</button>
     </div>
-    <div id="modeReelsUI" style="display:none">
+    <div id="modeReelsUI">
       <input type="text" id="reelsUsername" placeholder="username (@ siz)"/>
       <div class="label" style="margin-top:16px;margin-bottom:8px;">// nechta reel yuklash</div>
       <div class="count-select">
@@ -171,6 +203,8 @@ input::placeholder{color:#333;}
         <button class="count-btn active" onclick="setCount(10,this)">10</button>
         <button class="count-btn" onclick="setCount(20,this)">20</button>
         <button class="count-btn" onclick="setCount(30,this)">30</button>
+        <button class="count-btn" onclick="setCount(40,this)">40</button>
+        <button class="count-btn" onclick="setCount(50,this)">50</button>
       </div>
       <button class="btn btn-sm" id="loadReelsBtn" onclick="loadReels()">▶ REELSLARNI YUKLASH</button>
     </div>
@@ -205,7 +239,7 @@ input::placeholder{color:#333;}
 </div>
 
 <script>
-var currentMode='posts',reelLimit=10,reelsData=[],selectedReels=new Set(),funnelChart=null;
+var currentMode='reels',reelLimit=10,reelsData=[],selectedReels=new Set(),funnelChart=null;
 
 function setMode(mode,el){
   currentMode=mode;
@@ -261,32 +295,29 @@ async function downloadPDF(){
       #report{background:#fff!important;color:#111!important;padding:32px!important;}
       #report .report-hero{background:#f5f5f5!important;border-color:#333!important;}
       #report .report-summary,#report .rec-text,#report .funnel-ideal,#report .missed-exp,#report .sentence-why,#report .analysis-text{color:#444!important;}
-      #report .stat-card,#report .funnel-section,#report .recs-section,#report .video-card{background:#f5f5f5!important;border-color:#ddd!important;}
+      #report .stat-card,#report .funnel-section,#report .recs-section,#report .video-card,#report .account-analysis{background:#f5f5f5!important;border-color:#ddd!important;}
       #report .stat-val,#report .report-username span,#report .funnel-pct,#report .rec-num,#report .section-title,#report .label{color:#1a6600!important;}
       #report .stat-lbl,#report .score-label,#report .expand-btn,#report .metric{color:#666!important;}
       #report .missed-leads{background:#fff3f0!important;border-color:#ff6b35!important;}
       #report .missed-number{color:#cc3300!important;}
-      #report .missed-label{color:#666!important;}
       #report .funnel-verdict{background:#f0f5f0!important;border-color:#ccc!important;color:#444!important;}
       #report .hook-analysis{background:#f0f0f8!important;border-color:#ccc!important;color:#444!important;}
       #report .transcript-box{background:#f0f8f0!important;border-color:#aaccaa!important;}
-      #report .transcript-box-label{color:#1a6600!important;}
       #report .transcript-box-text{color:#336633!important;}
+      #report .pros-box{background:#f0f8f0!important;border-color:#aaccaa!important;}
+      #report .cons-box{background:#fff0f0!important;border-color:#ffaaaa!important;}
+      #report .pros-list li,#report .cons-list li,#report .sw-list li,#report .reel-recs-list li{color:#333!important;}
+      #report .sw-box.strengths{background:#f0f8f0!important;border-color:#aaccaa!important;}
+      #report .sw-box.weaknesses{background:#fff0f0!important;border-color:#ffaaaa!important;}
+      #report .reel-recs{background:#f0f0f8!important;border-color:#ccccff!important;}
       #report .sentence-item{background:#f8f8f8!important;}
-      #report .sentence-original{color:#999!important;}
-      #report .sentence-fix{color:#1a6600!important;}
-      #report .sentence-problem{color:#cc3300!important;}
       #report .outcome-box{background:#f0f5f0!important;border-color:#aaccaa!important;color:#336633!important;}
       #report .performance-gap{background:#fff8f0!important;color:#cc3300!important;}
       #report .score-bar-wrap,#report .funnel-bar-wrap{background:#e0e0e0!important;}
       #report .rec-item{border-color:#ddd!important;}
-      #report .report-username{color:#111!important;}
-      #report .video-caption{color:#333!important;}
       #report .badge-tof{background:#fafae0!important;color:#665500!important;border-color:#cccc00!important;}
       #report .badge-mof{background:#e0f0fa!important;color:#003366!important;border-color:#99ccff!important;}
       #report .badge-bof{background:#faeae0!important;color:#663300!important;border-color:#ffaa88!important;}
-      #report .emotional-trigger{background:#f5eefa!important;border-color:#cc88ff!important;color:#663399!important;}
-      #report .sentence-trigger{background:#eafaea!important;border-color:#47ffb2!important;color:#006633!important;}
     `;
     document.head.appendChild(style);
     await new Promise(function(r){setTimeout(r,400);});
@@ -395,10 +426,12 @@ function renderReelsReport(data){
   report.className='visible';
   var html='';
 
-  html+='<div class="report-hero"><div class="label">// hisobot · '+new Date().toLocaleDateString('ru')+'</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
+  // Hero
+  html+='<div class="report-hero"><div class="label">// reels tahlili · '+new Date().toLocaleDateString('ru')+'</div><div class="report-username"><span>@</span>'+esc(data.username)+'</div>';
   if(a.executive_summary)html+='<div class="report-summary">'+esc(a.executive_summary)+'</div>';
   html+='</div>';
 
+  // Stats
   html+='<div class="stats-grid">';
   html+='<div class="stat-card"><div class="stat-val">'+data.totalSelected+'</div><div class="stat-lbl">Reels tahlil</div></div>';
   html+='<div class="stat-card"><div class="stat-val">'+data.transcribedCount+'</div><div class="stat-lbl">Transkripsiya</div></div>';
@@ -406,9 +439,35 @@ function renderReelsReport(data){
   if(a.funnel)html+='<div class="stat-card"><div class="stat-val">'+esc(a.funnel.niche_avg_er||'—')+'</div><div class="stat-lbl">Nisha ER</div></div>';
   html+='</div>';
 
+  // Account analysis
+  if(a.account_analysis){
+    var aa=a.account_analysis;
+    html+='<div class="account-analysis">';
+    html+='<div class="section-title">// akkaunt umumiy tahlili</div>';
+    if(aa.content_style)html+='<div class="content-style-text">'+esc(aa.content_style)+'</div>';
+    if(aa.main_topics&&aa.main_topics.length){
+      html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.15em;margin-bottom:6px;">Asosiy mavzular</div>';
+      html+='<div class="topics-row">';
+      aa.main_topics.forEach(function(t){html+='<span class="topic-tag">'+esc(t)+'</span>';});
+      html+='</div>';
+    }
+    if((aa.strengths&&aa.strengths.length)||(aa.weaknesses&&aa.weaknesses.length)){
+      html+='<div class="strengths-weaknesses">';
+      html+='<div class="sw-box strengths"><div class="sw-title">✅ Kuchli tomonlar</div><ul class="sw-list">';
+      (aa.strengths||[]).forEach(function(s){html+='<li>'+esc(s)+'</li>';});
+      html+='</ul></div>';
+      html+='<div class="sw-box weaknesses"><div class="sw-title">❌ Zaif tomonlar</div><ul class="sw-list">';
+      (aa.weaknesses||[]).forEach(function(w){html+='<li>'+esc(w)+'</li>';});
+      html+='</ul></div>';
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+
+  // Funnel chart
   if(a.funnel){
     html+='<div class="funnel-section"><div class="section-title">// TOF / MOF / BOF — kontent voronkasi</div>';
-    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;">Воронка — путь аудитории от незнакомца до клиента. <strong style="color:#ccc">TOF 60%</strong> — новая аудитория. <strong style="color:#ccc">MOF 30%</strong> — доверие. <strong style="color:#ccc">BOF 10%</strong> — продажи.</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.8;"><strong style="color:#ccc">TOF 60%</strong> — yangi auditoriya. <strong style="color:#ccc">MOF 30%</strong> — ishonch. <strong style="color:#ccc">BOF 10%</strong> — sotish.</div>';
     html+='<div class="funnel-grid"><div class="funnel-chart-wrap"><canvas id="funnelChart" width="200" height="200"></canvas></div>';
     html+='<div class="funnel-legend">';
     [{key:'tof',label:'TOF',color:'var(--tof)',ideal:60},{key:'mof',label:'MOF',color:'var(--mof)',ideal:30},{key:'bof',label:'BOF',color:'var(--bof)',ideal:10}].forEach(function(item){
@@ -418,42 +477,68 @@ function renderReelsReport(data){
       html+='<div class="funnel-ideal">Ideal: '+item.ideal+'% <span style="color:'+(Math.abs(diff)<=10?'var(--success)':'var(--accent2)')+';">'+(diff>0?'+':'')+diff+'%</span></div></div>';
     });
     html+='</div></div>';
-    if(a.funnel.verdict)html+='<div class="funnel-verdict">'+esc(a.funnel.verdict)+'<br><br>'+esc(a.funnel_recommendations||'')+'</div>';
+    if(a.funnel.verdict)html+='<div class="funnel-verdict">'+esc(a.funnel.verdict)+(a.funnel.funnel_recommendations?'<br><br>'+esc(a.funnel.funnel_recommendations):'')+'</div>';
     html+='</div>';
   }
 
+  // Missed leads
   if(a.missed_leads){
-    html+='<div class="missed-leads"><div class="label">// упущенные возможности</div>';
+    html+='<div class="missed-leads"><div class="label">// yo\'qotilgan imkoniyatlar</div>';
     html+='<div class="missed-number">~'+a.missed_leads.count+'</div>';
-    html+='<div class="missed-label">потенциальных заявок упущено</div>';
+    html+='<div class="missed-label">potensial mijoz yo\'qotildi</div>';
     html+='<div class="missed-exp">'+esc(a.missed_leads.explanation||'')+'</div></div>';
   }
 
+  // Videos
   if(a.videos&&a.videos.length){
-    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">// анализ каждого рилса</div>';
+    html+='<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">// har bir reel tahlili</div>';
     a.videos.forEach(function(v,i){
       var tr=data.transcripts[i]||{};
       html+='<div class="video-card"><div class="video-card-header" onclick="toggleDetail('+i+')">';
       html+='<span class="video-badge '+badgeClass(v.funnel_type||'TOF')+'">'+esc(v.funnel_type||'?')+'</span>';
       html+='<div><div class="video-caption">'+esc((tr.caption||v.summary||'').slice(0,100))+'</div>';
-      html+='<div class="video-metrics"><div class="metric">❤️ <span>'+(tr.likes||v.actual_likes||0).toLocaleString('ru')+'</span></div><div class="metric">💬 <span>'+(tr.comments||0)+'</span></div>';
-      if(v.expected_likes)html+='<div class="metric">🎯 <span style="color:'+(v.expected_likes>(v.actual_likes||0)?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+' ожидалось</span></div>';
-      html+='</div><div class="expand-btn" id="eb-'+i+'">▼ Детальный анализ</div></div>';
+      html+='<div class="video-metrics"><div class="metric">❤️ <span>'+(tr.likesCount||v.actual_likes||0).toLocaleString('ru')+'</span></div><div class="metric">💬 <span>'+(tr.commentsCount||0)+'</span></div>';
+      if(v.expected_likes)html+='<div class="metric">🎯 <span style="color:'+(v.expected_likes>(tr.likesCount||0)?'var(--accent2)':'var(--success)')+'">'+v.expected_likes.toLocaleString('ru')+' kutilgan</span></div>';
+      html+='</div><div class="expand-btn" id="eb-'+i+'">▼ Batafsil tahlil (pros/cons, tavsiyalar)</div></div>';
       html+='<div class="video-scores">';
-      html+='<div class="score-row"><div class="score-label">Хук</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+scoreColor(v.hook_score||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.hook_score||5)+'">'+(v.hook_score||5)+'/10</div></div>';
-      html+='<div class="score-row"><div class="score-label">Вирал</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+scoreColor(v.viral_potential||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.viral_potential||5)+'">'+(v.viral_potential||5)+'/10</div></div>';
+      html+='<div class="score-row"><div class="score-label">Hook</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.hook_score||5)*10+'%;background:'+scoreColor(v.hook_score||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.hook_score||5)+'">'+(v.hook_score||5)+'/10</div></div>';
+      html+='<div class="score-row"><div class="score-label">Viral</div><div class="score-bar-wrap"><div class="score-bar" style="width:'+(v.viral_potential||5)*10+'%;background:'+scoreColor(v.viral_potential||5)+'"></div></div><div class="score-val" style="color:'+scoreColor(v.viral_potential||5)+'">'+(v.viral_potential||5)+'/10</div></div>';
       html+='</div></div>';
       if(v.performance_gap)html+='<div class="performance-gap">⚠️ '+esc(v.performance_gap)+'</div>';
+      // Detail section
       html+='<div class="video-detail" id="vd-'+i+'">';
-      if(tr.transcript&&tr.transcript!=='(mavjud emas)'){
-        html+='<div class="transcript-box"><div class="transcript-box-label">// текст транскрипции</div><div class="transcript-box-text">'+esc(tr.transcript)+'</div></div>';
+      // Pros / Cons
+      if((v.pros&&v.pros.length)||(v.cons&&v.cons.length)){
+        html+='<div class="pros-cons-grid">';
+        if(v.pros&&v.pros.length){
+          html+='<div class="pros-box"><div class="pros-title">✅ Kuchli tomonlar</div><ul class="pros-list">';
+          v.pros.forEach(function(p){html+='<li>'+esc(p)+'</li>';});
+          html+='</ul></div>';
+        }
+        if(v.cons&&v.cons.length){
+          html+='<div class="cons-box"><div class="cons-title">❌ Zaif tomonlar</div><ul class="cons-list">';
+          v.cons.forEach(function(c){html+='<li>'+esc(c)+'</li>';});
+          html+='</ul></div>';
+        }
+        html+='</div>';
+      }
+      // Per-reel recommendations
+      if(v.recommendations&&v.recommendations.length){
+        html+='<div class="reel-recs"><div class="reel-recs-title">// tavsiyalar</div><ul class="reel-recs-list">';
+        v.recommendations.forEach(function(r){html+='<li>'+esc(r)+'</li>';});
+        html+='</ul></div>';
+      }
+      // Transcript
+      if(tr.transcript&&tr.transcript!=='(mavjud emas)'&&tr.transcript!=="(video yo'q)"){
+        html+='<div class="transcript-box"><div class="transcript-box-label">// transkripsiya matni ('+esc(tr.source||'')+')</div><div class="transcript-box-text">'+esc(tr.transcript)+'</div></div>';
       }
       if(v.emotional_trigger)html+='<span class="emotional-trigger">🧠 '+esc(v.emotional_trigger)+'</span>';
       if(v.hook_analysis)html+='<div class="hook-analysis">🎣 '+esc(v.hook_analysis)+'</div>';
+      // Legacy deep analysis support
       if(v.deep_analysis&&v.deep_analysis.sentences&&v.deep_analysis.sentences.length){
-        html+='<div class="detail-title">// анализ сценария</div>';
+        html+='<div class="detail-title">// ssenariy tahlili</div>';
         v.deep_analysis.sentences.forEach(function(s){
-          html+='<div class="sentence-item"><div class="sentence-original">❌ '+esc(s.original||'')+'</div><div class="sentence-problem">Проблема: '+esc(s.problem||'')+'</div><div class="sentence-fix">✅ '+esc(s.fix||'')+'</div><div class="sentence-why">'+esc(s.why_fix_works||'')+'</div>';
+          html+='<div class="sentence-item"><div class="sentence-original">❌ '+esc(s.original||'')+'</div><div class="sentence-problem">Muammo: '+esc(s.problem||'')+'</div><div class="sentence-fix">✅ '+esc(s.fix||'')+'</div><div class="sentence-why">'+esc(s.why_fix_works||'')+'</div>';
           if(s.trigger)html+='<span class="sentence-trigger">'+esc(s.trigger)+'</span>';
           html+='</div>';
         });
@@ -463,8 +548,9 @@ function renderReelsReport(data){
     });
   }
 
+  // Top recommendations
   if(a.top_recommendations&&a.top_recommendations.length){
-    html+='<div class="recs-section"><div class="section-title">// рекомендации</div>';
+    html+='<div class="recs-section"><div class="section-title">// asosiy tavsiyalar</div>';
     a.top_recommendations.forEach(function(r,i){html+='<div class="rec-item"><div class="rec-num">0'+(i+1)+'</div><div class="rec-text">'+esc(r)+'</div></div>';});
     html+='</div>';
   }
@@ -479,8 +565,8 @@ function renderReelsReport(data){
 
 function toggleDetail(i){
   var vd=document.getElementById('vd-'+i);var eb=document.getElementById('eb-'+i);
-  if(vd.classList.contains('open')){vd.classList.remove('open');eb.textContent='▼ Детальный анализ';}
-  else{vd.classList.add('open');eb.textContent='▲ Закрыть';}
+  if(vd.classList.contains('open')){vd.classList.remove('open');eb.textContent='▼ Batafsil tahlil (pros/cons, tavsiyalar)';}
+  else{vd.classList.add('open');eb.textContent='▲ Yopish';}
 }
 
 function copyTxt(){if(window._reportData)navigator.clipboard.writeText(buildTxt(window._reportData));}
@@ -491,10 +577,23 @@ function buildTxt(d){
     if(typeof d.analysis==='string'){t+=d.analysis;}
     else{
       t+='EXECUTIVE SUMMARY:\n'+(d.analysis.executive_summary||'')+'\n\n';
-      if(d.analysis.funnel)t+='ВОРОНКА: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';
-      if(d.analysis.missed_leads)t+='УПУЩЕНО: ~'+d.analysis.missed_leads.count+'\n\n';
-      if(d.transcripts)d.transcripts.forEach(function(tr,i){t+='REEL '+(i+1)+' ТРАНСКРИПЦИЯ:\n'+(tr.transcript||'—')+'\n\n';});
-      if(d.analysis.videos)d.analysis.videos.forEach(function(v,i){t+='REEL '+(i+1)+' ['+v.funnel_type+']\nХук: '+v.hook_score+'/10 | Вирал: '+v.viral_potential+'/10\n'+(v.performance_gap||'')+'\n\n';});
+      if(d.analysis.account_analysis){
+        t+='KUCHLI TOMONLAR:\n'+(d.analysis.account_analysis.strengths||[]).map(function(s,i){return (i+1)+'. '+s;}).join('\n')+'\n\n';
+        t+='ZAIF TOMONLAR:\n'+(d.analysis.account_analysis.weaknesses||[]).map(function(s,i){return (i+1)+'. '+s;}).join('\n')+'\n\n';
+      }
+      if(d.analysis.funnel)t+='VORONKA: TOF '+d.analysis.funnel.tof+'% | MOF '+d.analysis.funnel.mof+'% | BOF '+d.analysis.funnel.bof+'%\n\n';
+      if(d.analysis.missed_leads)t+='YO\'QOTILGAN: ~'+d.analysis.missed_leads.count+'\n\n';
+      if(d.transcripts)d.transcripts.forEach(function(tr,i){
+        t+='REEL '+(i+1)+' TRANSKRIPSIYA:\n'+(tr.transcript||'—')+'\n\n';
+      });
+      if(d.analysis.videos)d.analysis.videos.forEach(function(v,i){
+        t+='REEL '+(i+1)+' ['+v.funnel_type+']\n';
+        t+='Hook: '+v.hook_score+'/10 | Viral: '+v.viral_potential+'/10\n';
+        if(v.pros)t+='✅ '+(v.pros||[]).join(' | ')+'\n';
+        if(v.cons)t+='❌ '+(v.cons||[]).join(' | ')+'\n';
+        if(v.recommendations)t+='→ '+(v.recommendations||[]).join(' | ')+'\n';
+        t+='\n';
+      });
       if(d.analysis.top_recommendations)d.analysis.top_recommendations.forEach(function(r,i){t+=(i+1)+'. '+r+'\n';});
     }
   }
@@ -523,7 +622,7 @@ async function loadReels(){
 
 function renderPicker(reels){
   document.getElementById('reelsGrid').innerHTML=reels.map(function(r,i){
-    var cap=esc((r.caption||'(tavsif yo\'q)').slice(0,80));
+    var cap=esc((r.caption||"(tavsif yo'q)").slice(0,80));
     var date=r.timestamp?new Date(r.timestamp*1000).toLocaleDateString('ru'):'—';
     return '<div class="reel-item" id="ri-'+i+'" onclick="toggleReel('+i+')">'+'<div class="reel-check" id="rc-'+i+'">✓</div>'+'<div><div class="reel-caption">'+cap+'</div><div class="reel-stats">❤️ '+(r.likesCount||0).toLocaleString('ru')+' 💬 '+(r.commentsCount||0)+'</div></div>'+'<div class="reel-date">'+date+'</div></div>';
   }).join('');
@@ -555,7 +654,7 @@ async function startReelsAnalysis(){
     setProgress(10);
     var res=await fetch('/api/transcribe-reels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,reels:selected})});
     setStep('s1','done','✓');
-    setStep('s2','running','Transkripsiya va tahlil...');
+    setStep('s2','running','Transkripsiya va tahlil (parallel)...');
     setProgress(50);
     var data=await res.json();
     if(!res.ok||data.error)throw new Error(data.error);
