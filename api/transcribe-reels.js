@@ -10,6 +10,7 @@ export default async function handler(req, res) {
   const OPENAI_KEY = process.env.OPENAI_KEY;
   const DEEPGRAM_KEY = process.env.DEEPGRAM_KEY;
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
+  const AISHA_KEY = process.env.AISHA_KEY;
 
   async function downloadVideo(url) {
     const r = await fetch(url, {
@@ -40,6 +41,21 @@ export default async function handler(req, res) {
     return (await r.text()).trim();
   }
 
+  async function aisha(buf, i) {
+    const form = new FormData();
+    form.append('file', new Blob([buf], { type: 'video/mp4' }), 'r' + i + '.mp4');
+    form.append('language', 'uz');
+    const r = await fetch('https://back.aisha.group/api/v2/stt/post/', {
+      method: 'POST',
+      headers: { 'X-Api-Key': AISHA_KEY },
+      body: form,
+      signal: AbortSignal.timeout(60000)
+    });
+    if (!r.ok) throw new Error('Aisha ' + r.status + ': ' + (await r.text()).slice(0, 100));
+    const d = await r.json();
+    return d?.text || d?.result || d?.transcript || d?.transcription || '';
+  }
+
   async function deepgram(buf) {
     const r = await fetch('https://api.deepgram.com/v1/listen?language=ru&punctuate=true', {
       method: 'POST',
@@ -56,12 +72,24 @@ export default async function handler(req, res) {
     if (!reel.videoUrl) {
       return { ...reel, transcript: "(video yo'q)", source: 'none', index: i };
     }
+    // Primary: Aisha (best Uzbek quality)
+    if (AISHA_KEY) {
+      try {
+        const buf = await downloadVideo(reel.videoUrl);
+        const text = await aisha(buf, i);
+        if (text) return { ...reel, transcript: text, source: 'aisha(uz)', index: i };
+      } catch (e0) {
+        console.log('[aisha ' + i + ']', e0.message);
+      }
+    }
+    // Fallback 1: Whisper
     try {
       const buf = await downloadVideo(reel.videoUrl);
       const text = await whisper(buf, 'r' + i + '.mp4');
       return { ...reel, transcript: text || "(bo'sh)", source: 'whisper(uz)', index: i };
     } catch (e1) {
       console.log('[whisper ' + i + ']', e1.message);
+      // Fallback 2: Deepgram
       try {
         const buf = await downloadVideo(reel.videoUrl);
         const text = await deepgram(buf);
